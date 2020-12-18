@@ -1,0 +1,64 @@
+Download pyCPAG directory objects
+
+An alternative to using wget is to copy files to the mgm share (\\oit-nas-fe13dcpub.oit.duke.edu\mgm_gwas) then copy from the mount target on kolab-02 (/mnt/mgm_gwas)
+
+mkdir pyCPAG
+
+sudo apt-get install unzip
+unzip file.zip -d destination_folder
+
+mkdir __pycache__
+wget "https://uc6e9c6f8243a34157ee0289e4cb.dl.dropboxusercontent.com/zip_download_get/An5ZQy7E8WBtbp87jHTmz74i2atP4Wnhte3AeuhDN0z9M6A1VimC4TzKCsu2bFn5E1-QtlMs1iA9qM_BwGhvVfZqibQhZZ6z_8WZ1TqxCZuXYw?_download_id=299524424804497836465712368593840498712979882598448582105210941274&_notify_domain=www.dropbox.com&dl=1" -O pycache.zip
+unzip -l pycache.zip
+unzip pycache.zip -x / -d __pycache__
+rm pycache.zip
+
+db directory
+Note:  unzip generates an error ("possible zip bomb ...") when certain multiple files are specified (possibly due to the number or
+size of the files) - therefore, use wild cards to mask dates embedded in file names, but ones that resolve to individual files
+Note:  unzip -d retains directory ifo, so that -d db places zipped file lddat/x in db/lddat/x
+
+mkdir db
+
+wget "https://uc5cfacbab90dad3f908135953d2.dl.dropboxusercontent.com/zip_download_get/An6QthX6LdCimsVOTtI-VwRK9EYn0o7mOnLZwNV9GDDAgKwxpzMWiT-K3RIvAvLXZDModfPcZ0_PxRixmS2hSCFSyQQrIxX2cmhqBhhkgQ4wAg?_download_id=14903868225027428756525867159882103522559291029673477239736595996&_notify_domain=www.dropbox.com&dl=1" -O db.zip
+unzip -l db.zip
+
+unzip db.zip cpag_gwasumstat_v1.1.db -d db
+unzip db.zip cpag_gwasumstat_v1.1_EUR.ld0.4.db -d db
+unzip db.zip cpag_gwasumstat_v1.1_AFR.ld0.4.db -d db
+unzip db.zip cpag_gwasumstat_v1.1_EAS.ld0.4.db -d db
+
+mkdir db/lddat
+unzip db.zip lddat/EU*.bed -d db
+unzip db.zip lddat/EU*.bim -d db
+unzip db.zip lddat/EU*.fam -d db
+unzip db.zip lddat/EA*.bed -d db
+unzip db.zip lddat/EA*.bim -d db
+unzip db.zip lddat/EA*.fam -d db
+unzip db.zip lddat/A*.bed -d db
+unzip db.zip lddat/A*.bim -d db
+unzip db.zip lddat/A*.fam -d db
+
+rm db.zip
+
+mkdir plink_bins
+wget "https://uc4759902ceb879bac53609b4d52.dl.dropboxusercontent.com/cd/0/get/BFJxtVLNpU3KUIH_oDbubRvCWPxgnWlLFkENbmVLiFnZdnKWz7gG5DqWnBFoE3uc4LPjM6qwNbNOV6LdLIZK7G8Wvh_laktolfvMJ-ylqiQ1tLfpKA-_a9DRyy3vDTqi3fk/file?_download_id=9251425142466181014515440050251961042755144518252647856185683845986&_notify_domain=www.dropbox.com&dl=1" -O plink_bins/plink
+
+Python scripts (note that these links expire - get latest by downloading in browser then copying download link):
+
+_utils.py:
+wget "https://uc0e84fda3ed8f421c26a001ff78.dl.dropboxusercontent.com/cd/0/get/BEpQolGxPvKtBlsqgOUlQoNrdx4ObKeWkbXiM38OuY2d_boTToeMi6bmLFSnHFYzEyoTt1NIUOFqYXtt0UDcvokHs8vAlFugOKE00gGjusYHAZu_5yBuxipW_HSHSje2cBY/file?_download_id=570759458312048449645597516355615995842581943295360975771518836&_notify_domain=www.dropbox.com&dl=1" -O _utils.py
+
+anno_parent_efo.py:
+wget "https://ucf53414c33e8e08bf63e77c002d.dl.dropboxusercontent.com/cd/0/get/BEpAwshYzjAtHFuoE495ds_CVArs7m8Cf5mmc_Q8G0fxaB2Qev1D-9Yq0omE7CfhDqcY6f4YzEtkD9rhNQ3zGD6k3Ccvb3U7iXl1BMBP91_4cp8bs7pY66ho-VcdX-OgbBM/file?_download_id=558382394378815383590265333714043154085619673209163198194960944&_notify_domain=www.dropbox.com&dl=1" -O anno_parent_efo.py
+
+main.py:
+wget "https://uca15d6ef3b87b05ffc9ae237679.dl.dropboxusercontent.com/cd/0/get/BEreIQX_2sZ0PJiUYOL4hvwcXfHGrK6T49-xPO7Ey_gaERs8d-e3KzRyXIVbNi9LlHWEY6EwbjbfG56RPWkCg2Owt_GnLzJdaWBNHk8yySoU1A6gmM_ueihzB92DhVBij48/file?_download_id=7061940257515068589473985016702170712916587235473003824926191183&_notify_domain=www.dropbox.com&dl=1" -O main.py
+
+stats.py:
+wget "https://ucbda3b4cb8f5a02db66a46cd7a6.dl.dropboxusercontent.com/cd/0/get/BErt01-yw_TbcDv72mw3zN3tcXlnmmWsjO5BV8bAgqbXgEnmW17en0yt3lRoxpYaW-3s8NtjtbIhvw_XBE7Hiw1EuOlgqsu0iRgNM8BOKEOVb_JmdsNcZHh0ZLjzpxD14SA/file?_download_id=366642069056145169046613866284622888336061929438323460713841998626&_notify_domain=www.dropbox.com&dl=1" -O stats.py
+
+
+mkdir output
+chgrp shiny output
+chmod 775 output

@@ -1,0 +1,19 @@
+Note that phenotype pairs is n1*n2 heterogenous GWAS studies, where n1 is the number of phenotypes in GWAS 1,
+n2 is the number of phenotypes in GWAS 2 (both after p-threshold filtering)
+
+Phenotype pairs for homogenous GWAS studies is n1*n1/2 (number of combinations)
+
+Phenotype pairs for GWAS1 with joint GWAS2, GWAS3 is n1*n2*n3
+
+Note that these may be adjusted by limiting phenotype pairs that have a no-null SNP intersection
+
+python3 main.py cpagdb --threads 2 --subtype BloodMetabolites --subtype BloodXenobiotic --Pcut 1e-5 --lddb-pop EUR --outfile output/BloodMetabolites-p1e-05-BloodXenobiotic-p1e-05-EUR.csv, 60 sec  (17214 phenotype pairs)
+
+python3 main.py cpagdb --threads 2 --subtype BloodMetabolites,BloodXenobiotic --Pcut 1e-5 --lddb-pop EUR --outfile output/BloodMetabolites-And-BloodXenobiotic-p1e05-EUR.csv, 6 min, 44 sec (117855 phenotype pairs)
+
+python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 --subtype BloodMetabolites,BloodXenobiotic --Pcut 1e-5 --lddb-pop EUR --outfile output/NHGRI-p1e-05-BloodMetabolitesXenobiotic-p1e-05-EUR.csv, 1 hr, 15 min, 49 sec (1299078 phenotype pairs)
+
+python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 --subtype UrineMetabolites --Pcut 1e-5 --lddb-pop EUR --outfile output/NHGRI-p1e-05-UrineMetabolites-p1e-05-EUR.csv, 7 min, 37 sec (147015 phenotype pairs)
+
+python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 --subtype mol_gwas --Pcut 1e-5 --lddb-pop EUR --outfile output/NHGRI-p1e-05-mol_gwas-p1e-05-EUR.csv, 1hr, 28 min, 41 sec (1841697 phenotype pairs)
+

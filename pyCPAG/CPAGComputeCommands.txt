@@ -1,0 +1,23 @@
+"C:\Users\Kyung Soon\AppData\Local\Programs\Python\Python37\python.exe" main.py cpagdb --threads 2 --subtype H2P2 --H2P2-Pcut 1e-5 --lddb-pop EUR --outfile output/H2P2-p1e-05-EUR.csv
+
+"C:\Users\Kyung Soon\AppData\Local\Programs\Python\Python37\python.exe" main.py cpagdb --threads 2 --subtype H2P2 --H2P2-Pcut 1e-5 --subtype mol_gwas --Pcut --lddb-pop EUR --outfile output/H2P2-p1e-05-EUR.csv
+
+python3 main.py cpagdb --threads 2 --subtype H2P2 --H2P2-Pcut 1e-7 --lddb-pop EUR --outfile output/H2P2-p1e-07-EUR.csv
+
+Serum Metabolites and Xenobiotics (Shin et al. 2014):
+Between:
+python3 main.py cpagdb --threads 2 --subtype BloodMetabolites --subtype BloodXenobiotic --Pcut 1e-5 --lddb-pop EUR --outfile output/BloodMetabolites-p1e-05-BloodXenobiotic-p1e-05-EUR.csv
+Within:
+python3 main.py cpagdb --threads 2 --subtype BloodMetabolites,BloodXenobiotic --Pcut 1e-5 --lddb-pop EUR --outfile output/BloodMetabolites-And-BloodXenobiotic-p1e05-EUR.csv
+
+Serum metabolites/xenobiotics vs. Human disease:
+python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 --subtype BloodMetabolites,BloodXenobiotic --Pcut 1e-5 --lddb-pop EUR --outfile output/NHGRI-p1e-05-BloodMetabolitesXenobiotic-p1e-05-EUR.csv
+python3 main.py post_analysis --anno-ontology --anno-cols Trait1 --infile output/NHGRI-p1e-05-BloodMetabolitesXenobiotic-p1e-05-EUR.csv --outfile output/NHGRI-p1e-05-BloodMetabolitesXenobiotic-p1e-05-EUR.csv
+
+Urine metabolites vs. Human disease:
+python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 --subtype UrineMetabolites --Pcut 1e-5 --lddb-pop EUR --outfile output/NHGRI-p1e-05-UrineMetabolites-p1e-05-EUR.csv
+python3 main.py post_analysis --anno-ontology --anno-cols Trait1 --infile output/NHGRI-p1e-05-UrineMetabolites-p1e-05-EUR.csv --outfile output/NHGRI-p1e-05-UrineMetabolites-p1e-05-EUR.csv
+
+All molecular/cellular traits vs. Human disease:
+python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 --subtype mol_gwas --Pcut 1e-5 --lddb-pop EUR --outfile output/NHGRI-p1e-05-mol_gwas-p1e-05-EUR.csv
+python3 main.py post_analysis --anno-ontology --anno-cols Trait1 --infile  output/NHGRI-p1e-05-mol_gwas-p1e-05-EUR.csv --outfile output/NHGRI-p1e-05-mol_gwas-p1e-05-EUR.csv
