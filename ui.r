@@ -16,7 +16,7 @@ library(RSQLite)
 
 # Set current working directory to project python and data resources
 setwd(c("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App/pyCPAG",
-        "/srv/shiny-server/CPAG/explore/pyCPAG")[1])
+        "/srv/shiny-server/CPAG/explore/pyCPAG")[2])
 
 # Specify database location
 dbloc <- "db/cpag_gwasumstat_v1.1.db"
@@ -44,24 +44,40 @@ shinyUI(
 
     tags$head(
       # Reposition and alter appearance of notification window
-      tags$style(
-        HTML(".shiny-notification {font-size:14px; color:black; font-weight:bold; width:50%; height=200px; position:fixed;
-              top:calc(50%); left:calc(25%)}")
-      ),
+      tags$style(HTML(".shiny-notification {font-size:14px; color:black; font-weight:bold; width:50%;
+                      height=200px; position:fixed; top:calc(50%); left:calc(25%)}")),
       # Make text and background of fileInput progress bar transparent
       # Otherwise, "File uploaded" message appears once file upoaded, but prior to a read.table operation accomplished
       # Note that background:transparent causes the progress bar to disappear, which is useful for fileInput(), but also
       # causes the bar to disappear when using shiny::Progress$new(), the standard progress object
-      # Progress$new() has a style parameter, but accepts on;y two values: notification or old
+      # Progress$new() has a style parameter, but accepts only two values: notification or old
       # Notification uses the .progress-bar style below, old seems to behave  similarly
       # Unfortunately the unmodifiable text of the fileInput() progress bar and the fixed style of Progress bars
       # does not give much flexibility for tailoring progress bar appearance
-      tags$style(
-        #HTML(".progress-bar {color: transparent!important; background:transparent!important}")
-        #HTML(".progress-bar {color: transparent!important}")
-        # Here's the real answer!
-        HTML(".shiny-file-input-progress {display: none}")
-      )
+      #tags$style(HTML(".progress-bar {color: transparent!important; background:transparent!important}")),
+      # Change color of text that appears inside of the bar
+      # This affects the bar for file input objects, but not for progress#new() objects, since their text appears
+      # below the bar
+      #tags$style(HTML(".progress-bar {color: transparent!important}")),
+      # Change the color of the progress bar (file input and progress meter)
+      #tags$style(HTML(".progress-bar {background-color: gray;}"))
+      #HTML(".shiny-file-input-progress {color: transparent!important}")
+      # Hide file input progress bar
+      #tag$style(HTML(".shiny-file-input-progress {display: none}")),
+      # Change color of file input button
+      #tags$style(HTML(".btn-file {background-color:red; border-color: red;}")),
+      # Customize the modal window
+      #tags$style(".modal-body {padding: 10px}
+      #            .modal-content  {-webkit-border-radius: 6px !important;-moz-border-radius: 6px !important;border-radius: 6px !important;}
+      #            .modal-dialog { width: 240px; display: inline-block; text-align: left; vertical-align: top;}
+      #            .modal-header {background-color: #339FFF; border-top-left-radius: 6px; border-top-right-radius: 6px}
+      #            .modal { text-align: right; padding-right:10px; padding-top: 24px;}
+      #            .close { font-size: 16px}"))
+      #tags$style(HTML(".modal-lg {position: relative; display: flex; flex-direction: column; margin-top: 50%}"))
+      #tags$style(HTML(".modal-lg {width: 50%; margin-top: 10%}")),
+      tags$style(HTML(".modal {margin-top: 10%}")),
+      tags$style(HTML(".modal-header {color: white; background-color: #0066cc; border-top-left-radius: 6px; border-top-right-radius: 6px}"))
+
     ),
 
     div(
@@ -325,11 +341,11 @@ shinyUI(
                 style="display:inline-block; vertical-align:top; margin-top:10px; width:15%"
               ),
               # Upload button
-              div(
-                actionButton(inputId="userComputeUploadFile", "Upload file", width="120px",
-                             style="color:white; background:linear-gradient(#54b4eb, #2fa4e7 60%, #0088dd)"),
-                style="display:inline-block; vertical-align:top; margin-top:40px; width:12%"
-              ),
+              #div(
+              #  actionButton(inputId="userComputeUploadFile", "Upload file", width="120px",
+              #               style="color:white; background:linear-gradient(#54b4eb, #2fa4e7 60%, #0088dd)"),
+              #  style="display:inline-block; vertical-align:top; margin-top:40px; width:12%"
+              #),
               HTML("<hr style='height:1px;color:black;background-color:black'>"),
               HTML("<b>2. Compute</b><br><br>"),
               div(
