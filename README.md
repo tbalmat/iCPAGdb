@@ -85,7 +85,7 @@ conda install -c conda-forge sqlite
 Serum metabolites/xenobiotics (Shin et al. 2014) vs. Human disease 
 
 ```sh
-python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 \
+python main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 \
   --subtype BloodMetabolites,BloodXenobiotic --Pcut 1e-5 \
   --lddb-pop EUR --outfile NHGRI-p1e-05-BloodMetabolitesXenobiotic-p1e-05-EUR.csv
 ```
@@ -93,7 +93,7 @@ python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 \
 then annotate phenotype:
 
 ```sh 
-python3 main.py post_analysis --anno-ontology --anno-cols Trait1 \
+python main.py post_analysis --anno-ontology --anno-cols Trait1 \
   --infile output/NHGRI-p1e-05-BloodMetabolitesXenobiotic-p1e-05-EUR.csv \
   --outfile NHGRI-p1e-05-BloodMetabolitesXenobiotic-p1e-05-EUR.csv
 ```
@@ -101,7 +101,7 @@ python3 main.py post_analysis --anno-ontology --anno-cols Trait1 \
 ### example 2
 
 ```sh 
-python3 main.py cpagdb --threads 2 --subtype H2P2 --H2P2-Pcut 1e-7 \
+python main.py cpagdb --threads 2 --subtype H2P2 --H2P2-Pcut 1e-7 \
   --lddb-pop EUR --outfile output/H2P2-p1e-07-EUR.csv
 ```
 
@@ -119,7 +119,7 @@ python main.py usr-gwas --threads 10 --infile iCPAGdb-Sample-GWAS-top_Ellinghaus
 then annotate phenotype:
 
 ```sh 
-python3 main.py post_analysis --anno-ontology --anno-cols Trait2 \
+python main.py post_analysis --anno-ontology --anno-cols Trait2 \
   --infile top_EllinghausPCs_covid19_pcut1e-5_icpagdb_out.csv \
   --outfile top_EllinghausPCs_covid19_pcut1e-5_icpagdb_out_addEFO.csv
   ```
