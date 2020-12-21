@@ -7,7 +7,7 @@ options(device="windows")
 # Test python execution
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\R-Devel")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\R-Devel")
 dir()
 
 #pyexe <- "\"C:\\Users\\Kyung Soon\\AppData\\Local\\Microsoft\\WindowsApps\\python.exe\""
@@ -84,7 +84,7 @@ dbDisconnect(db)
 # CPAG
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG")
 
 fout <- c("output/H2P2-p1e-05-EUR.csv", "output/H2P2-p1e-05-AFR.csv", "output/H2P2-p1e-05-EAS.csv",
           "output/NHGRI-p5e-08-EUR.csv", "output/H2P2-p1e-05-NHGRI-p5e-08-EUR.csv", "output/cpag.csv")[4]
@@ -139,7 +139,7 @@ system(pycmd, intern=T)
 # Examine uniqueness of shared SNPs
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG\\output")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG\\output")
 dir()
 fout <- c("H2P2-p1e-05-EUR.csv", "H2P2-p1e-05-AFR.csv", "H2P2-p1e-05-EAS.csv",
           "NHGRI-p5e-08-EUR.csv", "H2P2-p1e-05-NHGRI-p5e-08-EUR.csv")[4]
@@ -162,7 +162,7 @@ z <- data.frame(x[k,c("Trait1", "Trait2")], -log(x[k,"P_fisher"])/log(10), x[k,c
 # Examine relationships between Fisher-P, Jaccard, and Chao-Sorensen statistics
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG\\output")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG\\output")
 dir()
 fout <- c("H2P2-p1e-05-EUR.csv", "H2P2-p1e-05-AFR.csv", "H2P2-p1e-05-EAS.csv",
           "NHGRI-p5e-08-EUR.csv", "H2P2-p1e-05-NHGRI-p5e-08-EUR.csv")[4]
@@ -217,7 +217,7 @@ install.packages("reshape")
 library(heatmaply)
 library(reshape)
 
-setwd("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App/R-Devel")
+setwd("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel/R-Devel")
 dir("../pyCPAG/output")
 z <- read.table("../pyCPAG/output/H2P2-p1e-05-AFR.csv", header=T, sep=",", quote="\"")
 z <- z[which(regexpr("rs105", z[,"SNPshare_all"])>0),]
@@ -442,7 +442,7 @@ truncLabel <- function(a, ntrunc) {
 library(heatmaply)
 library(reshape)
 
-setwd("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/R-Devel")
+setwd("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel/R-Devel")
 dir("../pyCPAG/output")
 z <- read.table("../pyCPAG/output/top_EllinghausPCs_covid19-5286078011-p1e-07-NHGRI-p5e-08-EUR.csv", header=T, sep=",", quote="\"")
 
@@ -481,7 +481,7 @@ dir("output", pattern="H2P2-H2P2-p1e-05-p1e-05-EUR.csv")
 # factor ontology is available for NHGRI phenotypes only
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG")
 
 fin <- c("output/NHGRI-p5e-08-EUR.csv", "output/H2P2-p1e-05-EUR.csv", "output/cpag.csv")[1]
 fout <- c(fin, sub(".csv", "-Ontology.csv", fin, fixed=T))[1]
@@ -579,7 +579,7 @@ dbGetQuery(db, "select * from GWAStable limit 1")
 # Original CPAG files are modified and replaced, with EFO columns appended
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG")
 dir("output")
 
 f <- c("output/NHGRI-p5e-08-EUR.csv", "output/H2P2-p1e-05-NHGRI-p5e-08-EUR.csv",
@@ -595,7 +595,7 @@ x <- read.table(f, header=T, sep=",", quote="\"")
 # Search EFOs
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG")
 f <- c("output/NHGRI-p5e-08-EUR.csv", "output/H2P2-p1e-05-EUR.csv", "output/cpag.csv")[1]
 x <- read.table(f, header=T, sep=",", quote="\"")
 grep("(EFO_0004842)", x[,"Trait1_EFO"])
@@ -604,7 +604,7 @@ grep("(EFO_0004842)", x[,"Trait1_EFO"])
 # Enumerate phenotypes and EFOs when compounded
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG")
 f <- c("output/NHGRI-p5e-08-EUR.csv", "output/H2P2-p1e-05-EUR.csv", "output/cpag.csv")[1]
 x <- read.table(f, header=T, sep=",", quote="\"")
 
@@ -642,7 +642,7 @@ z[which(regexpr("(?i)(asthma)", z[,"ph"])>0),]
 # Evaluate compound EFOs
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG")
 f <- c("output/NHGRI-p5e-08-EUR.csv", "output/H2P2-p1e-05-EUR.csv", "output/cpag.csv")[1]
 x <- read.table(f, header=T, sep=",", quote="\"")
 
@@ -659,7 +659,7 @@ length(do.call(intersect,
 # Review COVID results
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG")
 x <- read.table("input/top_EllinghausPCs_covid19_pcut1e-5.cpag2_out_20201022_addOntology.csv", header=T, sep=",", quote="\"")
 
 # Duke GWAS phenotypes in COVID CPAG are from multiple studies (H2P2, NHGRI, etc.)
@@ -676,7 +676,7 @@ x[which(!unique(x[,"Trait2"]) %in% y),"Trait2"]
 ##################################################################################################
 
 library(RSQLite)
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devel\\pyCPAG")
 db <- dbConnect(RSQLite::SQLite(), "../pyCPAG/db/cpag_gwasumstat_v1.1.db")
 x <- dbGetQuery(db, "select trait as Phenotype, SNP, pval as p from GWAStable where source='H2P2' and pval<1e-07")
 write.table(x, "input/UserGWAS.csv", row.names=F, col.names=T, quote=T, sep=",")
@@ -685,7 +685,7 @@ write.table(x, "input/UserGWAS.csv", row.names=F, col.names=T, quote=T, sep=",")
 # Evaluate stdout of python script
 ##################################################################################################
 
-setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App\\pyCPAG")
+setwd("C:\\Projects\\Duke\\H2P2GenomeWideAssociationStudy\\CPAG\\iCPAGdb\\App-Devevl\\pyCPAG")
 
 pycmd <- paste(pyexe, " main.py cpagdb --threads 2 --subtype H2P2 --H2P2-Pcut 1e-7 --lddb-pop EUR --outfile output/cpag.csv", sep="")
 
@@ -720,7 +720,7 @@ abline(m[["coefficients"]][1], m[["coefficients"]][2], lty="dotted")
 # insert Padj_FDR column into Ellinghaus results
 ##################################################################################################
 
-setwd("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App/pyCPAG/output/")
+setwd("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel/pyCPAG/output/")
 x <- read.table("top_EllinghausPCs_covid19_pcut1e-5.cpag2_out_20201022_addOntology.csv", header=T, sep=",", quote="\"")
 x[,"Padj_FDR"] <- 1
 write.table(x, "top_EllinghausPCs_covid19_pcut1e-5.cpag2_out_20201022_addOntology.csv", row.names=F, col.names=T, sep=",", quote=T)
