@@ -16,7 +16,7 @@ This repo contains two parts
 
 ## Download PLINK and database
 1) download PLINK 1.9 () and place to folder "plink_bins"  <br/>
-2) download database file (~15Gb) to "db" folder from Dropbox (https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0).
+2) download database file (~15Gb) to "db" folder from Dropbox [LINK](https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0).
 
 The following folder structure contains all required codes and data file:<br/>
 pyCPAGdb <br/>
@@ -50,7 +50,9 @@ pyCPAGdb <br/>
 
 Serum metabolites/xenobiotics (Shin et al. 2014) vs. Human disease 
 
-```python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 --subtype BloodMetabolites,BloodXenobiotic --Pcut 1e-5 --lddb-pop EUR --outfile NHGRI-p1e-05-BloodMetabolitesXenobiotic-p1e-05-EUR.csv```
+```sh
+python3 main.py cpagdb --threads 2 --subtype NHGRI --NHGRI-Pcut 5e-8 --subtype BloodMetabolites,BloodXenobiotic --Pcut 1e-5 --lddb-pop EUR --outfile NHGRI-p1e-05-BloodMetabolitesXenobiotic-p1e-05-EUR.csv
+```
 
 annotate phenotype:
 
