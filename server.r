@@ -1,5 +1,5 @@
 # Duke University Cross Phenotype Analysis of GWAS Database (iCPAGdb)
-# Explore page, November 2020
+# Review, explore, and compute page, November 2020
 
 # Shiny app user interface function
 
@@ -12,7 +12,7 @@ options(max.print=1000)      # number of elements, not rows
 options(stringsAsFactors=F)
 options(scipen=999999)
 #options(device="windows")
-options(shiny.maxRequestSize=2*10**8) 
+options(shiny.maxRequestSize=10**9) 
 
 library(shiny)
 library(DT)
@@ -32,24 +32,24 @@ shinyServer(
   function(input, output, session) {
 
     # Change directories and set some globals
-    setwd(c("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App/pyCPAG",
-            "/srv/shiny-server/CPAG/explore/pyCPAG")[2])
-    pyexe <- c("\"C:/Users/Kyung Soon/AppData/Local/Programs/Python/Python37/python.exe\"", "python3")[2]
+    setwd(c("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel/pyCPAG",
+            "/srv/shiny-server/CPAG/explore/pyCPAG")[1])
+    pyexe <- c("\"C:/Users/Kyung Soon/AppData/Local/Programs/Python/Python37/python.exe\"", "python3")[1]
     threads <- 2
-    gwidthMin <- 600
+    gwidth <- 600
     gheightMin <- 600
     gwidthMax <- 2000
     gheightMax <- 2000
     currentReviewCPAGdata <- data.frame()
+    reviewResultsTableRowFilter <- NULL
     reviewResultsEFOcol <- vector("integer")
     reviewResultsEFOparentCol <- vector("integer")
     reviewResultsEFOparentTerm <- vector("character")
-    reviewResultsTableRowFilter <- NULL
     currentExploreCPAGdata <- data.frame()
+    exploreResultsTableRowFilter <- NULL
     exploreResultsEFOcol <- vector("integer")
     exploreResultsEFOparentCol <- vector("integer")
     exploreResultsEFOparentTerm <- vector("character")
-    exploreResultsTableRowFilter <- NULL
     largestKnownLogVal <- 347
     inDir <- "input"
     outDir <- "output"
@@ -57,16 +57,24 @@ shinyServer(
     outDirUserCompute <- "output/userCompute"
     exploreTabFirst <- T
     currentUserComputeCPAGdata <- data.frame()
+    userComputeResultsTableRowFilter <- NULL
     userComputeResultsEFOcol <- vector("integer")
     userComputeResultsEFOparentCol <- vector("integer")
     userComputeResultsEFOparentTerm <- vector("character")
-    userComputeResultsTableRowFilter <- NULL
     notifyDuration <- 5
     nLabelTrunc <- 45
     phenH2P2 <- "limited"
     hideTab("tabsetCPAG", "tabPanelExplore")
     #showTab("tabsetCPAG", "tabPanelExplore")
-    
+    pfactorH2P2 <- 1
+    pexpH2P2 <- 5
+    pfactorNHGRI <- 5
+    pexpNHGRI <- 8
+    pfactorOther <- 1
+    pexpOther <- 3
+    pmaxH2P2 <- pfactorH2P2*10**-pexpH2P2
+    pmaxNHGRI <- pfactorNHGRI*10**-pexpNHGRI
+    pmaxOther <- pfactorOther*10**-pexpOther
 
     #######################################################################################################
     # Configure review selection table
@@ -236,7 +244,7 @@ shinyServer(
     # https://datatables.net/reference/option/
     #######################################################################################################
 
-    composeCPAGTable <- function(data, truncSNP=T) {
+    composeCPAGtable <- function(data, allSNP=F) {
 
       # Transform values for display
       cdat <- data.frame("Trait1"=data[,"Trait1"],
@@ -248,7 +256,7 @@ shinyServer(
                          "P_fisher"=-round(log(data[,"P_fisher"])/log(10), 4),
                          "Padj_Bonferroni"=-round(log(data[,"Padj_Bonferroni"])/log(10), 4),
                          "Padj_FDR"=-round(log(data[,"Padj_FDR"])/log(10), 4),
-                         "SNPshare_all"=ifelse(rep(truncSNP, nrow(data)),
+                         "SNPshare_all"=ifelse(rep(allSNP, nrow(data)),
                                                data[,"SNPshare_all"],
                                                substring(data[,"SNPshare_all"], 1, 50)),
                          "Jaccard"=round(data[,"Jaccard"], 4),
@@ -404,6 +412,28 @@ shinyServer(
 
     }
 
+    ##################################################################################################
+    # Function:  Render CPAG table
+    ##################################################################################################
+
+    renderCPAGtable <- function(data, allSNP, tableName) {
+
+      progress <- shiny::Progress$new()
+      progress$set(message="Composing CPAG table", value=0.5)
+      output[[tableName]] <- DT::renderDataTable(composeCPAGtable(data, allSNP),
+                                                 # server=F instructs to transfer all rows when rendering, instead of
+                                                 # row transfer being synchronized with user page requests
+                                                 # This results in considerable additional overhead with large tables,
+                                                 # but makes all rows available for download using the data tables
+                                                 # download button (otherwise, downloaded rows are limited to those
+                                                 # appearing on the page being viewed at time of the download request
+                                                 # An alternative to enabling the data tables download button and
+                                                 # client-side handling is to implement a 
+                                                 server=T)
+      progress$close()
+
+    }
+
     #######################################################################################################
     # Function:  Compose observation filter index for review table
     #######################################################################################################
@@ -411,50 +441,56 @@ shinyServer(
     resultsTableComposeFilterIndex <- function(data, filterTrait, filterSNP, includeCompoundEFO,
                                                efoCol, filterEFOparent, efoParentCol) {
 
-      # Identify observations that satisfy trait filter criteria
-      # Omit leading and trailing spaces from filter
-      filterTrait <- tolower(trimws(filterTrait))
-      if(nchar(filterTrait)>0) {
-        k1 <- unique(c(which(regexpr(filterTrait, tolower(data[,"Trait1"]), fixed=T)>0),
-                       which(regexpr(filterTrait, tolower(data[,"Trait2"]), fixed=T)>0)))
-      } else {
-        k1 <- 1:nrow(data)
-      }
+      if(nrow(data)>0) {
 
-      # Identify observations that satisfy SNP filter criteria
-      filterSNP <- tolower(trimws(filterSNP))
-      if(nchar(filterSNP)>0) {
-        k2 <- which(regexpr(filterSNP, tolower(data[,"SNPshare_all"]), fixed=T)>0)
-      } else {
-        k2 <- 1:nrow(data)
-      }
+        # Identify observations that satisfy trait filter criteria
+        # Omit leading and trailing spaces from filter
+        filterTrait <- tolower(trimws(filterTrait))
+        if(nchar(filterTrait)>0) {
+          k1 <- unique(c(which(regexpr(filterTrait, tolower(data[,"Trait1"]), fixed=T)>0),
+                         which(regexpr(filterTrait, tolower(data[,"Trait2"]), fixed=T)>0)))
+        } else {
+          k1 <- 1:nrow(data)
+        }
 
-      # Display compound EFOs, if requested
-      if(includeCompoundEFO & length(efoCol)>0) {
-        k3 <- 1:nrow(data)
-      } else {
-        # Identify oservations with no comma in any phenotype column
-        k3 <- setdiff(1:nrow(data),
-                      unlist(lapply(efoCol,
-                             function(v) which(regexpr(",", data[,v], fixed=T)>0))))
-      }
+        # Identify observations that satisfy SNP filter criteria
+        filterSNP <- tolower(trimws(filterSNP))
+        if(nchar(filterSNP)>0) {
+          k2 <- which(regexpr(filterSNP, tolower(data[,"SNPshare_all"]), fixed=T)>0)
+        } else {
+          k2 <- 1:nrow(data)
+        }
 
-      # Identify observations that satisfy EFO parent filter criteria (using trait 1 or trait 2 EFO parent columns)
-      if(length(filterEFOparent)>0  & length(efoParentCol)>0) {
-        # Construct regular expression to search multiple terms
-        # (?a) executes a case insensitive search
-        filterEFO <- paste("(?i)(", paste(filterEFOparent, collapse="|", sep=""), ")", sep="")
-        # Index observations with EFO parent column(s) containing terms in filter vector
-        k4 <- unique(unlist(lapply(efoParentCol, function(j) which(regexpr(filterEFO, data[,j])>0))))
-      } else {
-        k4 <- 1:nrow(data)
-      }
+        # Display compound EFOs, if requested
+        if(includeCompoundEFO & length(efoCol)>0) {
+          k3 <- 1:nrow(data)
+        } else {
+          # Identify oservations with no comma in any phenotype column
+          k3 <- setdiff(1:nrow(data),
+                        unlist(lapply(efoCol,
+                               function(v) which(regexpr(",", data[,v], fixed=T)>0))))
+        }
 
-      # Intersect indices to identify observations satisfying all filters
-      k <- intersect(intersect(intersect(k1, k2), k3), k4)
-      cat(paste("filter:  ", "n-tr=", length(k1), ", n-SNP=", length(k2), ", n-EFO=", length(k3),
-                ", n-EFO-parent=", length(k4), ", n-intersect=", length(k), "\n", sep=""), file=stderr())
-      return(k)
+        # Identify observations that satisfy EFO parent filter criteria (using trait 1 or trait 2 EFO parent columns)
+        if(length(filterEFOparent)>0  & length(efoParentCol)>0) {
+          # Construct regular expression to search multiple terms
+          # (?a) executes a case insensitive search
+          filterEFO <- paste("(?i)(", paste(filterEFOparent, collapse="|", sep=""), ")", sep="")
+          # Index observations with EFO parent column(s) containing terms in filter vector
+          k4 <- unique(unlist(lapply(efoParentCol, function(j) which(regexpr(filterEFO, data[,j])>0))))
+        } else {
+          k4 <- 1:nrow(data)
+        }
+
+        # Intersect indices to identify observations satisfying all filters
+        k <- intersect(intersect(intersect(k1, k2), k3), k4)
+        cat(paste("filter:  ", "n-tr=", length(k1), ", n-SNP=", length(k2), ", n-EFO=", length(k3),
+                  ", n-EFO-parent=", length(k4), ", n-intersect=", length(k), "\n", sep=""), file=stderr())
+        return(k)
+
+      } else {
+        return(vector("integer"))
+      }
 
     }
 
@@ -462,7 +498,7 @@ shinyServer(
     # Function:  Filter results table, render data table and heatmap
     #######################################################################################################
 
-    renderResults <- function(data, rowFilter, filterTrait, filterSNP, truncSNP, includeCompoundEFO,
+    renderResults <- function(data, rowFilter, filterTrait, filterSNP, allSNP, includeCompoundEFO,
                               efoCol, filterEFOparent, efoParentCol, tabset, tableTab, tableName,
                               plotTab, plotName, heatmapMetric, heatmapNphenotype) {
 
@@ -474,36 +510,26 @@ shinyServer(
       # was also declared 
       assign(rowFilter, resultsTableRowFilter, envir=environment(renderResults))
 
-      # Display CPAG table
       if(length(resultsTableRowFilter)>0) {
-          progress <- shiny::Progress$new()
-          progress$set(message="Composing CPAG table", value=0.5)
-          output[[tableName]] <- DT::renderDataTable(composeCPAGTable(data[resultsTableRowFilter,], truncSNP),
-                                                     # server=F instructs to transfer all rows when rendering, instead of
-                                                     # row transfer being synchronized with user page requests
-                                                     # This results in considerable additional overhead with large tables,
-                                                     # but makes all rows available for download using the data tables
-                                                     # download button (otherwise, downloaded rows are limited to those
-                                                     # appearing on the page being viewed at time of the download request
-                                                     # An alternative to enabling the data tables download button and
-                                                     # client-side handling is to implement a 
-                                                     server=T)
-          progress$close()
-          # Compose and render heatmap
-          renderHeatmap(data=data[resultsTableRowFilter,],
-                        xCol="Trait1", yCol="Trait2", valueCol=heatmapMetric,
-                        log10Value=(heatmapMetric %in% c("P_fisher", "Padj_Bonferroni", "Padj_FDR")),
-                        nPhenotype=heatmapNphenotype,
-                        key.title=ifelse(heatmapMetric %in% c("P_fisher", "Padj_Bonferroni", "Padj_FDR"),
-                                         paste("-log10(", heatmapMetric, ")", sep=""),
-                                         heatmapMetric),
-                        tabset, tableTab, plotTab, plotName)
+
+        # Display CPAG table
+        renderCPAGtable(data[resultsTableRowFilter,], allSNP, tableName)
+
+        # Compose and render heatmap
+        renderHeatmap(data=data[resultsTableRowFilter,],
+                      xCol="Trait1", yCol="Trait2", valueCol=heatmapMetric,
+                      log10Value=(heatmapMetric %in% c("P_fisher", "Padj_Bonferroni", "Padj_FDR")),
+                      nPhenotype=heatmapNphenotype,
+                      key.title=ifelse(heatmapMetric %in% c("P_fisher", "Padj_Bonferroni", "Padj_FDR"),
+                                       paste("-log10(", heatmapMetric, ")", sep=""),
+                                       heatmapMetric),
+                      tabset, tableTab, plotTab, plotName)
+
       } else {
         output[[tableName]] <- DT::renderDataTable(NULL)
         output[[plotName]] <- renderPlotly(NULL)
-        #showNotification("No CPAG data exist for specified filter values", type="error", duration=notifyDuration)
         showModal(modalDialog(HTML("No CPAG data exist for specified filter values"),
-                              title="iCPAGdb", size="m", easyClose=T, footer=modalButton("OK")))
+                              title="iCPAGdb Render Results", size="m", easyClose=T, footer=modalButton("OK")))
       }
 
     }
@@ -759,9 +785,8 @@ shinyServer(
         output[[plotName]] <- renderPlotly(hmap[["g"]])
         progress$close()
       } else {
-        #showNotification("Insufficient data (cross-GWAS phenotype pairs) to generate heatmap", type="error", duration=notifyDuration)
         showModal(modalDialog(HTML("Insufficient data (cross-GWAS phenotype pairs) to generate heatmap"),
-                  "title"="iCPAGdb", size="m", easyClose=T, footer=modalButton("OK")))
+                  "title"="iCPAGdb Render Heatmap", size="m", easyClose=T, footer=modalButton("OK")))
       }
 
     }
@@ -796,7 +821,7 @@ shinyServer(
               # Retrieve CPAG results
               # Save in global data frame to be available in other reactive functions
               progress <- shiny::Progress$new()
-              progress$set(message="Reading upload data", value=0.5)
+              progress$set(message="Reading CPAG data", value=0.5)
               currentReviewCPAGdata <<- read.table(paste(outDir, "/", fn, sep=""), header=T, sep=",", quote="\"")
               progress$close()
 
@@ -830,7 +855,7 @@ shinyServer(
                             rowFilter="reviewResultsTableRowFilter",
                             filterTrait="",
                             filterSNP="",
-                            truncSNP=input$reviewSelectionIncludeTableAllSNPshare,
+                            allSNP=input$reviewSelectionIncludeTableAllSNPshare,
                             includeCompoundEFO=F,
                             efoCol=reviewResultsEFOcol,
                             filterEFOparent=vector("character"),
@@ -845,9 +870,8 @@ shinyServer(
             } else {
               output$reviewResultsTable <- DT::renderDataTable(NULL)
               output$reviewResultsHeatmap <- renderPlotly(NULL)
-              #showNotification("No CPAG data exist for specified GWAS features\n", type="error", duration=notifyDuration)
               showModal(modalDialog(HTML("No CPAG data exist for specified GWAS features"),
-                        title="iCPAGdb", size="m", easyClose=T, footer=modalButton("OK")))
+                        title="iCPAGdb Review", size="m", easyClose=T, footer=modalButton("OK")))
             }
 
           }
@@ -867,7 +891,7 @@ shinyServer(
                     rowFilter="reviewResultsTableRowFilter",
                     filterTrait=input$reviewSelectionFilterTrait,
                     filterSNP=input$reviewSelectionFilterSNP,
-                    truncSNP=input$reviewSelectionIncludeTableAllSNPshare,
+                    allSNP=input$reviewSelectionIncludeTableAllSNPshare,
                     includeCompoundEFO=input$reviewSelectionIncludeTableCompoundEFO,
                     efoCol=reviewResultsEFOcol,
                     filterEFOparent=input$reviewSelectionFilterEFOparent,
@@ -891,16 +915,16 @@ shinyServer(
       # Updates are not effective until all output has been pushed to the client
       # This does not guarantee that new values are in effect at the time of the call to renderResults()
       # Therefore, assign values and pass constants as parameter values to renderResults()
-      #updateTextInput(session, "reviewSelectionFilterTrait", value="")
-      #updateTextInput(session, "reviewSelectionFilterSNP", value="")
+      updateTextInput(session, "reviewSelectionFilterTrait", value="")
+      updateTextInput(session, "reviewSelectionFilterSNP", value="")
       #updateTextInput(session, "reviewSelectionFilterEFO", value="")
-      #updateTextInput(session, "reviewSelectionFilterEFOparent", value=vector("character"))
-      #updateCheckboxInput(session, "reviewSelectionIncludeTableCompoundEFO", value=F)
+      updateTextInput(session, "reviewSelectionFilterEFOparent", value=vector("character"))
+      updateCheckboxInput(session, "reviewSelectionIncludeTableCompoundEFO", value=F)
       renderResults(data=currentReviewCPAGdata,
                     rowFilter="reviewResultsTableRowFilter",
                     filterTrait="",
                     filterSNP="",
-                    truncSNP=input$reviewSelectionIncludeTableAllSNPshare,
+                    allSNP=input$reviewSelectionIncludeTableAllSNPshare,
                     includeCompoundEFO=F,
                     efoCol=reviewResultsEFOcol,
                     filterEFOparent=vector("character"),
@@ -975,13 +999,15 @@ shinyServer(
 
     #######################################################################################################
     # Observe event function:  Review tab - change in include all SNPs in shared SNP option
-    # Note that changes are applied to the review rsults table without an reactive function
-    # Is this due to input$reviewSelectionIncludeTableAllSNPshare appearing in the observe event for
-    # input$reviewSelectionTable_cells_selected, although it is not, itself named in the list of
-    # ui variables to be monitored?
     #######################################################################################################
 
-    #observeEvent(input$reviewSelectionIncludeTableAllSNPshare, {}, ignoreInit=T)
+    observeEvent(input$reviewSelectionIncludeTableAllSNPshare, {
+
+      renderCPAGtable(currentReviewCPAGdata[reviewResultsTableRowFilter,],
+                      input$reviewSelectionIncludeTableAllSNPshare,
+                      "reviewResultsTable")
+
+    }, ignoreInit=T)
 
     #######################################################################################################
     # Observe event function:  Review tab - change in heatmap metric or top significant phenotype
@@ -1009,7 +1035,7 @@ shinyServer(
     }, ignoreInit=T)
 
     #######################################################################################################
-    # Observe event:  Enab;e/disable "secret" features
+    # Observe event:  Enable/disable "secret" features
     #######################################################################################################
 
     observeEvent(input$featureEnable, {
@@ -1060,7 +1086,7 @@ shinyServer(
                     rowFilter="exploreResultsTableRowFilter",
                     filterTrait="",
                     filterSNP="",
-                    truncSNP=input$exploreSelectionIncludeTableAllSNPshare,
+                    allSNP=input$exploreSelectionIncludeTableAllSNPshare,
                     includeCompoundEFO=F,
                     efoCol=exploreResultsEFOcol,
                     filterEFOparent=vector("character"),
@@ -1076,130 +1102,339 @@ shinyServer(
     }
 
     #######################################################################################################
+    # Function:  Verify parameter values on Explore tab
+    # Present a dialog window when:
+    # Sources are identical but p-thresholds are different
+    # Any p-threshold is above the max allowed for the corresponding source
+    # Prompt for auto-correction or cancel (for manual correction)
+    # Auto-correction update then re-attempts computation (follow reactive events)
+    # Use parameter variables for evaluation, instead of direct reference to reactive values, since
+    # some are updated from within the script and the new values are not reflected in the
+    # eactive variables until data are sent, or flushed, to the browser, which may be after
+    # further script instructions reference the variables
+    #######################################################################################################
+
+    exploreVerifyParameterValues <- function(source1, source2, pfactor1, pexp1, pfactor2, pexp2) {
+
+      msg <- ""
+
+      # Compare p-thresholds with max allowed values
+      # Evaluate equivalence of sources and p-threshold values
+      p1 <- as.numeric(pfactor1)*10**-pexp1
+      p2 <- as.numeric(pfactor2)*10**-pexp2
+      if(source1=="H2P2" & p1>pmaxH2P2 |
+         source1=="NHGRI" & p1>pmaxNHGRI |
+         source1!="H2P2" & source1!="NHGRI" & p1>pmaxOther) {
+        msg <- "p-threshold<sub>1</sub> above maximum allowed value<br><br>"
+        buttonID <- "exploreComputeSetPMax1"
+        buttonText <- "Use maximum allowed value"
+      } else if(source2=="H2P2" & p2>pmaxH2P2 |
+                source2=="NHGRI" & p2>pmaxNHGRI |
+                source2!="H2P2" & source2!="NHGRI" & p2>pmaxOther) {
+        msg <- "p-threshold<sub>2</sub> above maximum allowed value<br><br>"
+        buttonID <- "exploreComputeSetPMax2"
+        buttonText <- "Use maximum allowed value"
+      } else if(source1==source2 & p1!=p2) {
+        msg <- "GWAS sources are identical, but p-thresholds are different<br><br>"
+        buttonID <- "exploreComputeSetPsmall"
+        buttonText <- "Use lesser p-threshold for both sets"
+      }
+
+      # Open a dialog, window if any rules violated
+      # Present options for correction or canceling
+      # Follow the reactive events triggered from within the dialog for path to compute function
+      if(msg!="") {
+        showModal(modalDialog(HTML(msg),
+                              HTML("Choose from the following:"),
+                              div(
+                                actionButton(buttonID, buttonText),
+                                             #style="color:white; background:linear-gradient(#54b4eb, #2fa4e7 60%, #0088dd)"),
+                                style="display:inline-block; vertical-align:top; margin-top:-5px; margin-left:20px"
+                              ),
+                              div(
+                                modalButton("Cancel"),
+                                style="display:inline-block; vertical-align:top; margin-top:-5px; margin-left:10px"
+                              ),
+                              title="iCPAGdb Explore", size="m", easyClose=T,
+                              footer=NULL))
+        success <- F
+      } else {
+        success <- T
+      }
+
+      return(success)
+
+    }
+
+    #######################################################################################################
+    # Function:  Compute CPAG using Explore tab parameter values
+    # Use parameter variables for evaluation, instead of direct reference to reactive values, since
+    # some are updated from within the script and the new values are not reflected in the
+    # reactive variables until data are sent, or flushed, to the browser, which may be after
+    # further script instructions reference the variables
+    #######################################################################################################
+
+    exploreComputeCPAG <- function(source1, source2, pfactor1, pexp1, pfactor2, pexp2, ldpop) {
+
+      # Verify CPAG computation parameter values
+      if(exploreVerifyParameterValues(source1, source2, pfactor1, pexp1, pfactor2, pexp2)) {
+
+        # Identify which GWAS sources are in request 
+        s <- c(source1, source2)
+        kh <- which(s=="H2P2")
+        kn <- which(s=="NHGRI")
+        ko <- which(!s %in% c("H2P2", "NHGRI"))
+        # Use lesser of p values when sources are identical or when neither set is H2P2 nor NHGRI
+        # Note that the interface allows specification of different p-thresholds with two non(H2P2 or NHRI)
+        # sets, but the CPAG function has a single parameter for non(H2P2 or NHRI) data sets
+        pfac <- c(pfactor1, pfactor2)
+        px <- c(pexp1, pexp2)
+        if(s[1]==s[2] | !s[1] %in% c("H2P2", "NHGRI") & !s[1] %in% c("H2P2", "NHGRI"))
+          if(as.integer(pfac[2])*10**-pexp1<as.integer(pfac[1])*10**-pexp2) {
+            pfac[1] <- pfac[2]
+            px <- c(pexp2, pexp2)
+          } else {
+            pfac[2] <- pfac[1]
+            px <- c(pexp1, pexp1)
+          }
+
+        # Compose output file name
+        # Format is GWAS1-p1-GWAS2-p2-ldpop.csv
+        # Order of appearance (GWAS1, GWAS2) is H2P2, NHGRI, other
+        # GWAS2 and p2 are excluded if GWAS1=GWAS2
+        if(length(kh)>0) {
+          cpag <- paste("H2P2-p", pfac[kh[1]], "e-", sprintf("%02d", px[kh[1]]),
+                        # Include second GWAS only if different from H2P2
+                        ifelse(length(kh)==1,
+                               paste("-", s[-kh], "-p", pfac[-kh], "e-", sprintf("%02d", px[-kh]), sep=""),
+                               ""),
+                        sep="")
+        } else if(length(kn)>0) {
+          cpag <- paste("NHGRI-p", pfac[kn[1]], "e-", sprintf("%02d", px[kn[1]]),
+                        # Include second GWAS only if different from NHGRI
+                        ifelse(length(kn)==1,
+                               paste("-", s[-kn], "-p", pfac[-kn], "e-", sprintf("%02d", px[-kn]), sep=""),
+                               ""),
+                        sep="")
+        } else if(s[1]!=s[2]) {
+          k <- order(s)
+          cpag <- paste(s[k[1]], "-p", pfac[k[1]], "e-", sprintf("%02d", px[k[1]]), "-",
+                        s[k[2]], "-p", pfac[k[2]], "e-", sprintf("%02d", px[k[2]]), sep="")
+        } else {
+          cpag <- paste(s[1], "-p", pfac[1], "e-", sprintf("%02d", px[1]), sep="")
+        }
+        cpag <- paste(cpag, "-", ldpop, ".csv", sep="")
+        existFile <- F
+
+        # Test for existence of output file
+        if(length(which(dir(outDir, pattern=cpag, ignore.case=T)==cpag))>0) {
+
+          # File exists - read data, render table and heatmap
+          exploreReadCPAGandRender(paste(outDir, "/", cpag, sep=""))
+
+        } else {
+
+          # File does not exist
+          # Compute results for requested GWAS sets, p-thresholds, and LD population
+          # Compose python command to execute CPAG function
+          pycmd <- paste(pyexe, " main.py cpagdb --threads ", threads, 
+                         ifelse(length(kh)>0,
+                                paste(" --subtype ", s[kh[1]], " --subtype ", s[-kh[1]], sep=""),
+                                ifelse(length(kn)>1,
+                                       paste(" --subtype ", s[kn[1]], " --subtype ", s[-kn[1]], sep=""),
+                                       paste(" --subtype ", s[1], " --subtype ", s[2], sep=""))),
+                         ifelse(s[1]=="H2P2" | s[2]=="H2P2",
+                                paste(" --H2P2-Pcut ", pfac[kh[1]], "e-", px[kh[1]], sep=""), ""),
+                         ifelse(s[1]=="NHGRI" | s[2]=="NHGRI",
+                                paste(" --NHGRI-Pcut ", pfac[kn[1]], "e-", px[kn[1]], sep=""), ""),
+                         ifelse(!s[1] %in% c("H2P2", "NHGRI") | !s[2] %in% c("H2P2", "NHGRI"),
+                                paste(" --Pcut ", pfac[ko[1]], "e-", px[ko[1]], sep=""), ""),
+                         " --lddb-pop ", ldpop,
+                         " --outfile \"", outDir, "/", cpag, "\"", sep="")
+          cat(paste("\npycmd:  ", pycmd, "\n\n", sep=""), file=stderr())
+          # Compose commands to include ontology, for NHGRI results only
+          if(length(kh)==0 & length(kn)>0) {
+            pycmd2 <- paste(pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait1",
+                            " --infile \"", outDir, "/", cpag, "\" --outfile \"", outDir, "/", cpag, "\"", sep="")
+            cat(paste("\npycmd2:  ", pycmd2, "\n\n", sep=""), file=stderr())
+          } else {
+            pycmd2 <- ""
+          }
+          if(length(kh)==1 & length(kn)==1 | length(kn)==2) {
+            pycmd3 <- paste(pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait2",
+                            " --infile \"", outDir, "/", cpag, "\" --outfile \"", outDir, "/", cpag, "\"", sep="")
+            cat(paste("\npycmd3:  ", pycmd3, "\n\n", sep=""), file=stderr())
+          } else {
+            pycmd3 <- ""
+          }
+
+          # Create progress meter prior to launcing parallel process, since that process is independent of
+          # the current Shiny environment
+          progress <- shiny::Progress$new()
+          progress$set(message=paste("Computing CPAG results. Execution time may be several minutes.",
+                                     " Start time is ", format(Sys.time(), "%X %Z"), sep=""), value=0.5)
+          # Compute CPAG from within an asynchronous (parallel, independent) process
+          # When future() instructions complete, the result (the OS command return value) is piped to a function
+          # that is responsible forrendering table and plot results
+          # The %...>% is a "promise" pipe that waits on results from the future operation then proceeds
+          # The progress object is closed within the promise function so that it is visible while future()
+          # instructions are executed
+          # Important features:  future() functions asynchronously when plan(multisession) is specified
+          # R is, by default, synchronous, executing a single instruction before another
+          # With synchronous operation, Shiny waits on completion of any instruction currently being executed
+          # before processing any user initiated activity - if user1 initiates a lengthy process in a given Shiny app,
+          # user two cannot even load the app until the lengthy operation completes
+          # Using asyncgronous operations, lengthy instructions can be executed without delaying other activity
+          # The %...>% pipe delays processing of further instructions while the output of lengthy asynchrounous
+          # instructions are executed
+          future({
+            t <- proc.time()
+            # Rout stderr to stdout with 2>&1 (but tends to eliminate all output, even when errors occur)
+            y <- suppressWarnings(system(pycmd, intern=T))
+            if(is.null(attributes(y)) & pycmd2!="")
+              y <- suppressWarnings(system(pycmd2, intern=T))
+            if(is.null(attributes(y)) & pycmd3!="")
+              y <- suppressWarnings(system(pycmd3, intern=T))
+            t <- proc.time()-t
+            cat(paste(t, "\n", collapse=" "), file=stderr())
+            y}) %...>%
+              (function(y) {
+                 progress$close()
+                 if(is.null(attributes(y))) {
+                   exploreReadCPAGandRender(paste(outDir, "/", cpag, sep=""))
+                 } else {
+                   output$exploreResultsTable <- DT::renderDataTable(NULL)
+                   output$exploreResultsHeatmap <- renderPlotly(NULL)
+                   showModal(modalDialog(HTML("Error while computing CPAG"),
+                             title="iCPAGdb Explore", size="m", easyClose=T, footer=modalButton("OK")))
+
+                 }
+               })
+
+        }
+
+        # Clear filters
+        updateTextInput(session, "exploreSelectionFilterTrait", value="")
+        updateTextInput(session, "exploreSelectionFilterSNP", value="")
+        #updateTextInput(session, "exploreSelectionFilterEFO", value="")
+        updateTextInput(session, "exploreSelectionFilterEFOparent", value=vector("character"))
+        updateCheckboxInput(session, "exploreSelectionIncludeTableCompoundEFO", value=F)
+
+      } else {
+        output$exploreResultsTable <- DT::renderDataTable(NULL)
+        output$exploreResultsHeatmap <- renderPlotly(NULL)
+      }
+
+    }
+
+    #######################################################################################################
+    # Observe event function:  Explore tab - set both p-thresholds to the lesser of the two
+    # This event is the result of pressing a "modify values" button in a modal dialog window
+    # Reactive values (screen controls) are programmatically updated from within this function, but
+    # the corresponding variables (input$exploreX) do not reflect the new values until a flush to
+    # the browser is accomplished, which is prompted by user action (press a button, change an on-screen
+    # value)
+    # Therefore pass updated values to compute and data verification in function parameters
+    #######################################################################################################
+
+    observeEvent(input$exploreComputeSetPsmall, {
+
+      p1 <- as.numeric(input$explorePfactor1)*10**-input$explorePexp1
+      p2 <- as.numeric(input$explorePfactor2)*10**-input$explorePexp2
+      if(p1<p2) {
+        pfactor1 <- input$explorePfactor1
+        pexp1 <- input$explorePexp1
+        pfactor2 <- pfactor1
+        pexp2 <- pexp1
+        updateRadioButtons(session, "explorePfactor2", selected=pfactor2)
+        updateSliderInput(session, "explorePexp2", value=pexp2)
+      } else {
+        pfactor2 <- input$explorePfactor2
+        pexp2 <- input$explorePexp2
+        pfactor1 <- pfactor2
+        pexp1 <- pexp2
+        updateRadioButtons(session, "explorePfactor1", selected=pfactor1)
+        updateSliderInput(session, "explorePexp1", value=pexp1)
+      }
+      removeModal()
+      exploreComputeCPAG(input$exploreSource1, input$exploreSource2, pfactor1, pexp1, pfactor2, pexp2,
+                         input$exploreLDpop)
+
+    }, ignoreInit=T)
+
+    #######################################################################################################
+    # Observe event function:  Explore tab - set p-threshold 1 to max allowable value
+    # Use local variables and pass values as parameters due to reactive variables not reflecting
+    # updated values until flush
+    #######################################################################################################
+
+    observeEvent(input$exploreComputeSetPMax1, {
+
+      if(input$exploreSource1=="H2P2") {
+        pfactor1 <- pfactorH2P2
+        pexp1 <- pexpH2P2
+      } else if(input$exploreSource1=="NHGRI") {
+        pfactor1 <- pfactorNHGRI
+        pexp1 <- pexpNHGRI
+      } else {
+        pfactor1 <- pfactorOther
+        pexp1 <- pexpOther
+      }
+      updateRadioButtons(session, "explorePfactor1", selected=pfactor1)
+      updateSliderInput(session, "explorePexp1", value=pexp1)
+      removeModal()
+      exploreComputeCPAG(input$exploreSource1, input$exploreSource2, pfactor1=pfactor1, pexp1=pexp1,
+                         input$explorePfactor2, input$explorePexp2, input$exploreLDpop)
+
+    }, ignoreInit=T)
+
+    #######################################################################################################
+    # Observe event function:  Explore tab - set p-threshold 2 to max allowable value
+    # Use local variables and pass values as parameters due to reactive variables not reflecting
+    # updated values until flush
+    #######################################################################################################
+
+    observeEvent(input$exploreComputeSetPMax2, {
+
+      if(input$exploreSource2=="H2P2") {
+        pfactor2 <- pfactorH2P2
+        pexp2 <- pexpH2P2
+      } else if(input$exploreSource2=="NHGRI") {
+        pfactor2 <- pfactorNHGRI
+        pexp2 <- pexpNHGRI
+      } else {
+        pfactor2 <- pfactorOther
+        pexp2 <- pexpOther
+      }
+      updateRadioButtons(session, "explorePfactor2", selected=pfactor2)
+      updateSliderInput(session, "explorePexp2", value=pexp2)
+      removeModal()
+      exploreComputeCPAG(input$exploreSource1, input$exploreSource2, input$explorePfactor1, input$explorePexp1,
+                         pfactor2, pexp2, input$exploreLDpop)
+
+    }, ignoreInit=T)
+
+    #######################################################################################################
     # Observe event function:  Explore tab - compute CPAG button
     #######################################################################################################
 
     observeEvent(input$exploreCompute, {
 
-      # Compose output file name
-      # Format is GWAS1-p1-GWAS2-p2-ldpop.csv
-      # Order of appearance (GWAS1, GWAS2) is H2P2, NHGRI, other
-      # GWAS2 and p2 are excluded if GWAS1=GWAS2 
-      s <- sort(c(input$exploreSource1, input$exploreSource2))
-      p <- as.integer(c(input$explorePthresh1, input$explorePthresh2)[order(c(input$exploreSource1, input$exploreSource2))])
-      kh <- which(s=="H2P2")
-      kn <- which(s=="NHGRI")
-      ko <- which(!s %in% c("H2P2", "NHGRI"))
-      p[kh] <- max(p[kh], 5, na.rm=T)
-      p[kn] <- max(p[kn], 8, na.rm=T)
-      p[ko] <- max(p[ko], 3, na.rm=T)
-      if(length(kh)>0) {
-        cpag <- paste("H2P2-p1e-", sprintf("%02d", p[kh[1]]),
-                      ifelse(length(kh)==1,
-                             paste("-", s[-kh], ifelse(length(kn)>0, "-p5e-", "-p1e-"), sprintf("%02d", p[-kh]),  sep=""),
-                             ""),
-                      sep="")
-      } else if(length(kn)>0) {
-        cpag <- paste("NHGRI-p5e-", sprintf("%02d", p[kn[1]]),
-                      ifelse(length(kn)==1, paste("-", s[-kn], "-p5e-", sprintf("%02d", p[-kn]),  sep=""), ""),
-                      sep="")
-      } else if(s[1]!=s[2]) {
-        cpag <- paste(s[1], "-p1e-", sprintf("%02d", p[1]), "-", s[2], "-p1e-", sprintf("%02d", p[2]), sep="")
-      } else {
-        cpag <- paste(s[1], "-p1e-", sprintf("%02d", p[1]), sep="")
-      }
-      cpag <- paste(cpag, "-", input$exploreLDpop, ".csv", sep="")
-      existFile <- F
+      exploreComputeCPAG(input$exploreSource1, input$exploreSource2, input$explorePfactor1,
+                         input$explorePexp1, input$explorePfactor2, input$explorePexp2,
+                         input$exploreLDpop)
 
-      # Test for existense of output file
-      if(length(which(dir(outDir, pattern=cpag, ignore.case=T)==cpag))>0) {
+    }, ignoreInit=T)
 
-        # File exists - read data, render table and heatmap
-        exploreReadCPAGandRender(paste(outDir, "/", cpag, sep=""))
+    #######################################################################################################
+    # Observe event function:  Explore tab - change in include all SNPs in shared SNP option
+    #######################################################################################################
 
-      } else {
+    observeEvent(input$exploreSelectionIncludeTableAllSNPshare, {
 
-        # File does not exist
-        # Compute results for requested GWAS sets, p-thresholds, and LD population
-        # Compose python command to execute CPAG function
-        pycmd <- paste(pyexe, " main.py cpagdb --threads ", threads, 
-                       " --subtype ", s[1], " --subtype ", s[2],
-                       ifelse(s[1]=="H2P2" | s[2]=="H2P2",
-                              paste(" --H2P2-Pcut 1e-", p[kh[1]], sep=""), ""),
-                       ifelse(s[1]=="NHGRI" | s[2]=="NHGRI",
-                              paste(" --NHGRI-Pcut 5e-", p[kn[1]], sep=""), ""),
-                       ifelse(!s[1] %in% c("H2P2", "NHGRI") | !s[2] %in% c("H2P2", "NHGRI"),
-                              paste(" --Pcut 1e-", p[ko[1]], sep=""), ""),
-                       " --lddb-pop ", input$exploreLDpop,
-                       " --outfile \"", outDir, "/", cpag, "\"", sep="")
-        cat(paste("\npycmd:  ", pycmd, "\n\n", sep=""), file=stderr())
-        # Compose commands to include ontology, for NHGRI results only
-        if(s[1]=="NHGRI" | s[2]=="NHGRI") {
-          pycmd2 <- paste(pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait1",
-                          " --infile \"", outDir, "/", cpag, "\" --outfile \"", outDir, "/", cpag, "\"", sep="")
-          cat(paste("\npycmd2:  ", pycmd2, "\n\n", sep=""), file=stderr())
-        } else {
-          pycmd2 <- ""
-        }
-        if(s[1]=="NHGRI" & s[2]=="NHGRI") {
-          pycmd3 <- paste(pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait2",
-                          " --infile \"", outDir, "/", cpag, "\" --outfile \"", outDir, "/", cpag, "\"", sep="")
-          cat(paste("\npycmd3:  ", pycmd3, "\n\n", sep=""), file=stderr())
-        } else {
-          pycmd3 <- ""
-        }
-        # Create progress meter prior to launcing parallel process, since that process is independent of
-        # the current Shiny environment
-        progress <- shiny::Progress$new()
-        progress$set(message=paste("Computing CPAG results. Execution time may be several minutes.",
-                                   " Start time is ", format(Sys.time(), "%X %Z"), sep=""), value=0.5)
-        # Compute CPAG from within an asynchronous (parallel, independent) process
-        # When future() instructions complete, the result (the OS command return value) is piped to a function
-        # that is responsible forrendering table and plot results
-        # The %...>% is a "promise" pipe that waits on results from the future operation then proceeds
-        # The progress object is closed within the promise function so that it is visible while future()
-        # instructions are executed
-        # Important features:  future() functions asynchronously when plan(multisession) is specified
-        # R is, by default, synchronous, executing a single instruction before another
-        # With synchronous operation, Shiny waits on completion of any instruction currently being executed
-        # before processing any user initiated activity - if user1 initiates a lengthy process in a given Shiny app,
-        # user two cannot even load the app until the lengthy operation completes
-        # Using asyncgronous operations, lengthy instructions can be executed without delaying other activity
-        # The %...>% pipe delays processing of further instructions while the output of lengthy asynchrounous
-        # instructions are executed
-        future({
-          t <- proc.time()
-          # Rout stderr to stdout with 2>&1 (but tends to eliminate all output, even when errors occur)
-          y <- suppressWarnings(system(pycmd, intern=T))
-          if(is.null(attributes(y)) & pycmd2!="")
-            y <- suppressWarnings(system(pycmd2, intern=T))
-          if(is.null(attributes(y)) & pycmd3!="")
-            y <- suppressWarnings(system(pycmd3, intern=T))
-          t <- proc.time()-t
-          cat(paste(t, "\n", collapse=" "), file=stderr())
-          y}) %...>%
-            (function(y) {
-               progress$close()
-               if(is.null(attributes(y))) {
-                 exploreReadCPAGandRender(paste(outDir, "/", cpag, sep=""))
-               } else {
-                 output$exploreResultsTable <- DT::renderDataTable(NULL)
-                 output$exploreResultsHeatmap <- renderPlotly(NULL)
-                 #showNotification("Error while computing CPAG", type="error", duration=notifyDuration)
-                 showModal(modalDialog(HTML("Error while computing CPAG"),
-                           title="iCPAGdb", size="m", easyClose=T, footer=modalButton("OK")))
-
-               }
-             })
-
-      }
-
-      # Clear filters
-      updateTextInput(session, "exploreSelectionFilterTrait", value="")
-      updateTextInput(session, "exploreSelectionFilterSNP", value="")
-      #updateTextInput(session, "exploreSelectionFilterEFO", value="")
-      updateTextInput(session, "exploreSelectionFilterEFOparent", value=vector("character"))
-      updateCheckboxInput(session, "exploreSelectionIncludeTableCompoundEFO", value=F)
+      renderCPAGtable(currentExploreCPAGdata[exploreResultsTableRowFilter,],
+                      input$exploreSelectionIncludeTableAllSNPshare,
+                      "exploreResultsTable")
 
     }, ignoreInit=T)
 
@@ -1239,7 +1474,7 @@ shinyServer(
                     rowFilter="exploreResultsTableRowFilter",
                     filterTrait=input$exploreSelectionFilterTrait,
                     filterSNP=input$exploreSelectionFilterSNP,
-                    truncSNP=input$exploreSelectionIncludeTableAllSNPshare,
+                    allSNP=input$exploreSelectionIncludeTableAllSNPshare,
                     includeCompoundEFO=input$exploreSelectionIncludeTableCompoundEFO,
                     efoCol=exploreResultsEFOcol,
                     filterEFOparent=input$exploreSelectionFilterEFOparent,
@@ -1263,16 +1498,16 @@ shinyServer(
       # Updates are not effective until all output has been pushed to the client
       # This does not guarantee that new values are in effect at the time of the call to renderResults()
       # Therefore, assign values and pass constants as parameter values to renderResults()
-      #updateTextInput(session, "exploreSelectionFilterTrait", value="")
-      #updateTextInput(session, "exploreSelectionFilterSNP", value="")
+      updateTextInput(session, "exploreSelectionFilterTrait", value="")
+      updateTextInput(session, "exploreSelectionFilterSNP", value="")
       #updateTextInput(session, "exploreSelectionFilterEFO", value="")
-      #updateTextInput(session, "exploreSelectionFilterEFOparent", value=vector("character"))
-      #updateCheckboxInput(session, "exploreSelectionIncludeTableCompoundEFO", value=F)
+      updateTextInput(session, "exploreSelectionFilterEFOparent", value=vector("character"))
+      updateCheckboxInput(session, "exploreSelectionIncludeTableCompoundEFO", value=F)
       renderResults(data=currentExploreCPAGdata,
                     rowFilter="exploreResultsTableRowFilter",
                     filterTrait="",
                     filterSNP="",
-                    truncSNP=input$exploreSelectionIncludeTableAllSNPshare,
+                    allSNP=input$exploreSelectionIncludeTableAllSNPshare,
                     includeCompoundEFO=F,
                     efoCol=exploreResultsEFOcol,
                     filterEFOparent=vector("character"),
@@ -1320,13 +1555,6 @@ shinyServer(
         # Read first lines of file
         x <- scan(input$userComputeBrowseFile[,"datapath"], "character", n=5, sep="\n", quote="", quiet=T)
 
-        #showNotification(paste("File is ready.  Specify column delimiter and headings then press \"Upload file.\"",
-        #                       ifelse(length(grep("\t", x)>0),
-        #                              "  NOTE THAT TAB DELIMITERS HAVE BEEN DETECTED IN THE FILE.",
-        #                              ""),
-        #                       sep=""),
-        #                 id="fileInput", duration=NULL, type="message")
-
         # Display lines and test for tabs
         showModal(modalDialog( 
           #sideBarLayout()
@@ -1337,7 +1565,7 @@ shinyServer(
                             "<b>NOTE THAT TAB DELIMITERS HAVE BEEN DETECTED IN THE FILE</b>",
                             ""),
                      sep="")),
-          title="iCPAGdb", size="l", easyClose=T,
+          title="iCPAGdb Compute", size="l", easyClose=T,
           footer=modalButton("OK")))
  
     }, ignoreInit=T)
@@ -1436,10 +1664,65 @@ shinyServer(
     }
 
     #######################################################################################################
-    # Observe event function:  User compute tab - compute CPAG button
+    # Function:  Verify parameter values on User Compute tab
+    # Present a dialog window when p-threshold is above the max allowed for the corresponding source
+    # Prompt for auto-correction or cancel (for manual correction)
+    # Auto-correction update then re-attempts computation (follow reactive events)
+    # Use parameter variables for evaluation, instead of direct reference to reactive values, since
+    # some are updated from within the script and the new values are not reflected in the
+    # eactive variables until data are sent, or flushed, to the browser, which may be after
+    # further script instructions reference the variables
     #######################################################################################################
 
-    observeEvent(input$userComputeCompute, {
+    userComputeVerifyParameterValues <- function(source2, pfactor2, pexp2) {
+
+      msg <- ""
+
+      # Compare p-thresholds with max allowed values
+      p2 <- as.numeric(pfactor2)*10**-pexp2
+      if(source2=="H2P2" & p2>pmaxH2P2 |
+         source2=="NHGRI" & p2>pmaxNHGRI |
+         source2!="H2P2" & source2!="NHGRI" & p2>pmaxOther) {
+        msg <- "p-threshold<sub>2</sub> above maximum allowed value<br><br>"
+        buttonID <- "userComputeComputeSetPMax2"
+        buttonText <- "Use maximum allowed value"
+      }
+
+      # Open a dialog, window if any rules violated
+      # Present options for correction or canceling
+      # Follow the reactive events triggered from within the dialog for path to compute function
+      if(msg!="") {
+        showModal(modalDialog(HTML(msg),
+                              HTML("Choose from the following:"),
+                              div(
+                                actionButton(buttonID, buttonText),
+                                             #style="color:white; background:linear-gradient(#54b4eb, #2fa4e7 60%, #0088dd)"),
+                                style="display:inline-block; vertical-align:top; margin-top:-5px; margin-left:20px"
+                              ),
+                              div(
+                                modalButton("Cancel"),
+                                style="display:inline-block; vertical-align:top; margin-top:-5px; margin-left:10px"
+                              ),
+                              title="iCPAGdb Compute", size="m", easyClose=T,
+                              footer=NULL))
+        success <- F
+      } else {
+        success <- T
+      }
+
+      return(success)
+
+    }
+
+    #######################################################################################################
+    # Function:  User compute tab - compute CPAG
+    # Use parameter variables for evaluation, instead of direct reference to reactive values, since
+    # some are updated from within the script and the new values are not reflected in the
+    # reactive variables until data are sent, or flushed, to the browser, which may be after
+    # further script instructions reference the variables
+    #######################################################################################################
+
+    userComputeComputeCPAG <- function(source2, pfactor1, pexp1, pfactor2, pexp2, ldpop) {
 
       # Validate and copy input file
       f <- copyValidateUploadFile()
@@ -1449,164 +1732,208 @@ shinyServer(
         if(length(which(dir(inDirUserCompute, paste(f[["uGWASfile"]], ".csv", sep=""))==
                         paste(f[["uGWASfile"]], ".csv", sep="")))>0) {
 
-          # Compose output file name
-          # Format is UserFile-p1-GWAS2-p2-ldpop.csv
-          cpagFile <- paste(f[["uGWASfile"]], "-p1e-", sprintf("%02d", input$userComputePthresh1), "-", input$userComputeSource2,
-                            ifelse(input$userComputeSource2=="H2P2",
-                                   paste("-p1e-", sprintf("%02d", max(input$userComputePthresh1, 5)), sep=""),
-                                   ifelse(input$userComputeSource2=="NHGRI",
-                                          paste("-p5e-", sprintf("%02d", max(input$userComputePthresh2, 8)), sep=""),
-                                          paste("-p1e-", sprintf("%02d", max(input$userComputePthresh1, 3)), sep=""))),
-                            "-", input$userComputeLDpop, ".csv", sep="")
+          # Verify CPAG computation parameter values
+          if(userComputeVerifyParameterValues(source2, pfactor2, pexp2)) {
 
-          # Compose python command
-          pycmd <- paste(pyexe, " main.py usr-gwas --threads ", threads,
-                         " --infile \"", inDirUserCompute, "/", f[["uGWASfile"]], ".csv\"",
-                         " --delimitor \",\"",
-                         " --usr-pcut 1e-", max(input$userComputePthresh1, 3),
-                         #" --usr-pheno-name ", f[["uGWAScol"]]["phenotype"],
-                         " --SNPcol \"", f[["uGWAScol"]]["snp"], "\"",
-                         " --Pcol \"", f[["uGWAScol"]]["p"], "\"",
-                         " --querydb ", input$userComputeSource2,
-                         " --cpagdb-pcut",
-                         ifelse(input$userComputeSource2=="H2P2",
-                                paste(" 1e-", max(input$userComputePthresh2, 5), sep=""),
-                                ifelse(input$userComputeSource2=="NHGRI",
-                                       paste(" 5e-", max(input$userComputePthresh2, 8), sep=""),
-                                       paste(" 1e-", max(input$userComputePthresh1, 3), sep=""))),
-                         " --ld-clump 1",
-                         " --lddb-pop ", input$userComputeLDpop,
-                         " --outfile \"", outDirUserCompute, "/", cpagFile, "\"", sep="")
 
-          cat(paste("\npycmd:  ", pycmd, "\n\n", sep=""), file=stderr())
+            # Compose output file name
+            # Format is UserFile-p1-GWAS2-p2-ldpop.csv
+            cpagFile <- paste(f[["uGWASfile"]], "-p", pfactor1, "e-", sprintf("%02d", pexp1), "-",
+                              source2, "-p", pfactor2, "e-", sprintf("%02d", pexp2), "-",
+                              ldpop, ".csv", sep="")
 
-          # Compose commands to include ontology, for NHGRI results only
-          if(input$userComputeSource2=="NHGRI") {
-            pycmd2 <- paste(pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait2",
-                            " --infile \"", outDirUserCompute, "/", cpagFile, "\" --outfile \"",
-                            outDirUserCompute, "/", cpagFile, "\"", sep="")
-            cat(paste("\npycmd2:  ", pycmd2, "\n\n", sep=""), file=stderr())
-          } else {
-            pycmd2 <- ""
-          }
+            # Compose python command
+            pycmd <- paste(pyexe, " main.py usr-gwas --threads ", threads,
+                           " --infile \"", inDirUserCompute, "/", f[["uGWASfile"]], ".csv\"",
+                           " --delimitor \",\"",
+                           " --usr-pcut ", pfactor1, "e-", pexp1,
+                           #" --usr-pheno-name ", f[["uGWAScol"]]["phenotype"],
+                           " --SNPcol \"", f[["uGWAScol"]]["snp"], "\"",
+                           " --Pcol \"", f[["uGWAScol"]]["p"], "\"",
+                           " --querydb ", source2,
+                           " --cpagdb-pcut ", pfactor2, "e-", pexp2,
+                           " --ld-clump 1",
+                           " --lddb-pop ", ldpop,
+                           " --outfile \"", outDirUserCompute, "/", cpagFile, "\"", sep="")
 
-          # Create progress meter prior to launcing parallel process, since that process is independent of
-          # the current Shiny environment
-          progress <- shiny::Progress$new()
-          progress$set(message=paste("Computing CPAG results. Estimated execution time is between 30 and 60 seconds.",
-                                     " Start time is ", format(Sys.time(), "%X %Z"), sep=""), value=0.5)
+            cat(paste("\npycmd:  ", pycmd, "\n\n", sep=""), file=stderr())
 
-          # Compute CPAG from within an asynchronous (parallel, independent) process
-          # Wnen future() instructions complete, the result (the OS command return value) is piped to a function
-          # that is responsible forrendering table and plot results
-          # The %...>% is a "promise" pipe that waits on results from the future operation then proceeds
-          # The progress object is closed within the promise function so that it is visible while future()
-          # instructions are executed
-          # Important features:  future() functions asynchronously when plan(multisession) is specified
-          # R is, by default, synchronous, executing a single instruction before another
-          # With synchronous operation, Shiny waits on completion of any instruction currently being executed
-          # before processing any user initiated activity - if user1 initiates a lengthy process in a given Shiny app,
-          # user two cannot even load the app until the lengthy operation completes
-          # Using asyncgronous operations, lengthy instructions can be executed without delaying other activity
-          # The %...>% pipe delays processing of further instructions while the output of lengthy asynchrounous
-          # instructions are executed
-          future({
-            t <- proc.time()
-            # Route stderr to stdout with 2>&1 (but it tends to eliminate all output, even when errors occur)
-            y <- suppressWarnings(system(pycmd, intern=T))
-            if(is.null(attributes(y)) & pycmd2!="")
-              y <- suppressWarnings(system(pycmd2, intern=T))
-            t <- proc.time()-t
-            cat(paste(t, "\n", collapse=" "), file=stderr())
-            y}) %...>%
-              (function(y) {
-                 progress$close()
-                 if(is.null(attributes(y))) {
-                   # Read CPAG results
-                   # Verify existence of output file
-                   if(length(which(dir(outDirUserCompute, pattern=cpagFile)==cpagFile))>0) {
-                     currentUserComputeCPAGdata <<- read.table(paste(outDirUserCompute, "/", cpagFile, sep=""),
-                                                               header=T, sep=",", quote="\"")
-                     # Construct observation filter
-                     userComputeResultsTableRowFilter <<- 1:nrow(currentUserComputeCPAGdata)
+            # Compose commands to include ontology, for NHGRI results only
+            if(source2=="NHGRI") {
+              pycmd2 <- paste(pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait2",
+                              " --infile \"", outDirUserCompute, "/", cpagFile, "\" --outfile \"",
+                              outDirUserCompute, "/", cpagFile, "\"", sep="")
+              cat(paste("\npycmd2:  ", pycmd2, "\n\n", sep=""), file=stderr())
+            } else {
+              pycmd2 <- ""
+            }
 
-                     # Index EFO columns
-                     userComputeResultsEFOcol <<- which(regexpr("Trait.\\_EFO", colnames(currentUserComputeCPAGdata))>0)
-                     userComputeResultsEFOparentCol <<- which(regexpr("Trait.\\_ParentTerm", colnames(currentUserComputeCPAGdata))>0)
+            # Create progress meter prior to launcing parallel process, since that process is independent of
+            # the current Shiny environment
+            progress <- shiny::Progress$new()
+            progress$set(message=paste("Computing CPAG results. Estimated execution time is between 30 and 60 seconds.",
+                                       " Start time is ", format(Sys.time(), "%X %Z"), sep=""), value=0.5)
 
-                     # Compose list of unique EFO parent terms
-                     if(length(userComputeResultsEFOparentCol)>0) {
-                       a <- na.omit(unlist(currentUserComputeCPAGdata[,userComputeResultsEFOparentCol]))
-                       if(length(a)>0) {
-                         userComputeResultsEFOparentTerm <<- sort(unique(trimws(unlist(strsplit(a, ",")))))
+            # Compute CPAG from within an asynchronous (parallel, independent) process
+            # Wnen future() instructions complete, the result (the OS command return value) is piped to a function
+            # that is responsible forrendering table and plot results
+            # The %...>% is a "promise" pipe that waits on results from the future operation then proceeds
+            # The progress object is closed within the promise function so that it is visible while future()
+            # instructions are executed
+            # Important features:  future() functions asynchronously when plan(multisession) is specified
+            # R is, by default, synchronous, executing a single instruction before another
+            # With synchronous operation, Shiny waits on completion of any instruction currently being executed
+            # before processing any user initiated activity - if user1 initiates a lengthy process in a given Shiny app,
+            # user two cannot even load the app until the lengthy operation completes
+            # Using asyncgronous operations, lengthy instructions can be executed without delaying other activity
+            # The %...>% pipe delays processing of further instructions while the output of lengthy asynchrounous
+            # instructions are executed
+            future({
+              t <- proc.time()
+              # Route stderr to stdout with 2>&1 (but it tends to eliminate all output, even when errors occur)
+              y <- suppressWarnings(system(pycmd, intern=T))
+              if(is.null(attributes(y)) & pycmd2!="")
+                y <- suppressWarnings(system(pycmd2, intern=T))
+              t <- proc.time()-t
+              cat(paste(t, "\n", collapse=" "), file=stderr())
+              y}) %...>%
+                (function(y) {
+                   progress$close()
+                   if(is.null(attributes(y))) {
+                     # Read CPAG results
+                     # Verify existence of output file
+                     if(length(which(dir(outDirUserCompute, pattern=cpagFile)==cpagFile))>0) {
+                       currentUserComputeCPAGdata <<- read.table(paste(outDirUserCompute, "/", cpagFile, sep=""),
+                                                                 header=T, sep=",", quote="\"")
+                       # Construct observation filter
+                       userComputeResultsTableRowFilter <<- 1:nrow(currentUserComputeCPAGdata)
+
+                       # Index EFO columns
+                       userComputeResultsEFOcol <<- which(regexpr("Trait.\\_EFO", colnames(currentUserComputeCPAGdata))>0)
+                       userComputeResultsEFOparentCol <<- which(regexpr("Trait.\\_ParentTerm", colnames(currentUserComputeCPAGdata))>0)
+
+                       # Compose list of unique EFO parent terms
+                       if(length(userComputeResultsEFOparentCol)>0) {
+                         a <- na.omit(unlist(currentUserComputeCPAGdata[,userComputeResultsEFOparentCol]))
+                         if(length(a)>0) {
+                           userComputeResultsEFOparentTerm <<- sort(unique(trimws(unlist(strsplit(a, ",")))))
+                         } else {
+                           userComputeResultsEFOparentTerm <<- vector("character")
+                         }                     
                        } else {
                          userComputeResultsEFOparentTerm <<- vector("character")
-                       }                     
+                       }
+                       updateSelectInput(session, "userComputeSelectionFilterEFOparent", choices=userComputeResultsEFOparentTerm)
+
+                       # Render table and heatmap
+                       renderResults(data=currentUserComputeCPAGdata,
+                                     rowFilter="userComputeResultsTableRowFilter",
+                                     filterTrait="",
+                                     filterSNP="",
+                                     allSNP=input$userComputeSelectionIncludeTableAllSNPshare,
+                                     includeCompoundEFO=F,
+                                     efoCol=userComputeResultsEFOcol,
+                                     filterEFOparent=vector("character"),
+                                     efoParentCol=userComputeResultsEFOparentCol,
+                                     tabset="tabsetUserComputeResults",
+                                     tableTab="tabPanelUserComputeResultsTable",
+                                     tableName="userComputeResultsTable",
+                                     plotTab="tabPanelUserComputeResultsHeatmap",
+                                     plotName="userComputeResultsHeatmap",
+                                     heatmapMetric=input$userComputeSelectionHeatmapMetric,
+                                     heatmapNphenotype=input$userComputeSelectionHeatmapNphenotype)
+
+                       # Clear filter controls
+                       updateTextInput(session, "userComputeSelectionFilterTrait", value="")
+                       updateTextInput(session, "userComputeSelectionFilterSNP", value="")
+                       #updateTextInput(session, "userComputeSelectionFilterEFO", value="")
+                       updateTextInput(session, "userComputeSelectionFilterEFOparent", value=vector("character"))
+                       updateCheckboxInput(session, "userComputeSelectionIncludeTableCompoundEFO", value=F)
+
                      } else {
-                       userComputeResultsEFOparentTerm <<- vector("character")
+                       output$userComputeResultsTable <- DT::renderDataTable(NULL)
+                       output$userComputeResultsHeatmap <- renderPlotly(NULL)
+                       showModal(modalDialog(HTML(paste("No results returned for requested CPAG parameter values<br>",
+                                                        "Consider relaxing p-thresholds"), sep=""),
+                                             title="iCPAGdb Compute", size="m", easyClose=T, footer=modalButton("OK")))
                      }
-                     updateSelectInput(session, "userComputeSelectionFilterEFOparent", choices=userComputeResultsEFOparentTerm)
-
-                     # Render table and heatmap
-                     renderResults(data=currentUserComputeCPAGdata,
-                                   rowFilter="userComputeResultsTableRowFilter",
-                                   filterTrait="",
-                                   filterSNP="",
-                                   truncSNP=input$userComputeSelectionIncludeTableAllSNPshare,
-                                   includeCompoundEFO=F,
-                                   efoCol=userComputeResultsEFOcol,
-                                   filterEFOparent=vector("character"),
-                                   efoParentCol=userComputeResultsEFOparentCol,
-                                   tabset="tabsetUserComputeResults",
-                                   tableTab="tabPanelUserComputeResultsTable",
-                                   tableName="userComputeResultsTable",
-                                   plotTab="tabPanelUserComputeResultsHeatmap",
-                                   plotName="userComputeResultsHeatmap",
-                                   heatmapMetric=input$userComputeSelectionHeatmapMetric,
-                                   heatmapNphenotype=input$userComputeSelectionHeatmapNphenotype)
-
-                     # Clear filter controls
-                     updateTextInput(session, "userComputeSelectionFilterTrait", value="")
-                     updateTextInput(session, "userComputeSelectionFilterSNP", value="")
-                     #updateTextInput(session, "userComputeSelectionFilterEFO", value="")
-                     updateTextInput(session, "userComputeSelectionFilterEFOparent", value=vector("character"))
-                     updateCheckboxInput(session, "userComputeSelectionIncludeTableCompoundEFO", value=F)
-
                    } else {
                      output$userComputeResultsTable <- DT::renderDataTable(NULL)
                      output$userComputeResultsHeatmap <- renderPlotly(NULL)
-                     #showNotification(HTML(paste("No results returned for uploaded GWAS requested CPAG parameter values<br>",
-                     #                            "Consider relaxing p-thresholds"), sep=""),
-                     #                 type="error", duration=2*notifyDuration)
-                     showModal(modalDialog(HTML(paste("No results returned for requested CPAG parameter values<br>",
-                                                      "Consider relaxing p-thresholds"), sep=""),
-                                           title="iCPAGdb", size="m", easyClose=T, footer=modalButton("OK")))
+                     showModal(modalDialog(HTML(paste("Error while computing CPAG<br>", paste(y, collapse="<br>", sep=""), sep="")),
+                                           title="iCPAGdb Compute", size="m", easyClose=T, footer=modalButton("OK")))
                    }
-                 } else {
-                   output$userComputeResultsTable <- DT::renderDataTable(NULL)
-                   output$userComputeResultsHeatmap <- renderPlotly(NULL)
-                   #showNotification(HTML(paste("Error while computing CPAG<br>", paste(y, collapse="<br>", sep=""), sep="")),
-                   #                 type="error", duration=3*notifyDuration)
-                   showModal(modalDialog(HTML(paste("Error while computing CPAG<br>", paste(y, collapse="<br>", sep=""), sep="")),
-                                         title="iCPAGdb", size="m", easyClose=T, footer=modalButton("OK")))
-                 }
-               })
+                 })
+
+          } else {
+            output$userComputeResultsTable <- DT::renderDataTable(NULL)
+            output$userComputeResultsHeatmap <- renderPlotly(NULL)
+          }
 
         } else {
           output$userComputeResultsTable <- DT::renderDataTable(NULL)
           output$userComputeResultsHeatmap <- renderPlotly(NULL)
-          #showNotification("Upload file does not exist.  Please upload and try again.", type="error",
-          #                 duration=2*notifyDuration)
           showModal(modalDialog(HTML("Upload file does not exist.  Please upload and try again."),
-                                title="iCPAGdb", size="m", easyClose=T, footer=modalButton("OK")))
+                                title="iCPAGdb Compute", size="m", easyClose=T, footer=modalButton("OK")))
           cat(paste("User compute, upload file does not exist, file:", f, sep=""), file=stderr())
         }
 
       } else {
-        showModal(modalDialog(HTML(f[["result"]]), title="iCPAGdb", size="m", easyClose=T, footer=modalButton("OK")))
+        output$userComputeResultsTable <- DT::renderDataTable(NULL)
+        output$userComputeResultsHeatmap <- renderPlotly(NULL)
+        showModal(modalDialog(HTML(f[["result"]]), title="iCPAGdb Compute", size="m", easyClose=T, footer=modalButton("OK")))
       }
 
-    })
+    }
+
+    #######################################################################################################
+    # Observe event function:  User compute tab - set p-threshold 2 to max allowable value
+    # Use local variables and pass values as parameters due to reactive variables not reflecting
+    # updated values until flush
+    #######################################################################################################
+
+    observeEvent(input$userComputeComputeSetPMax2, {
+
+      if(input$userComputeSource2=="H2P2") {
+        pfactor2 <- pfactorH2P2
+        pexp2 <- pexpH2P2
+      } else if(input$userComputeSource2=="NHGRI") {
+        pfactor2 <- pfactorNHGRI
+        pexp2 <- pexpNHGRI
+      } else {
+        pfactor2 <- pfactorOther
+        pexp2 <- pexpOther
+      }
+      updateRadioButtons(session, "userComputePfactor2", selected=pfactor2)
+      updateSliderInput(session, "userComputePexp2", value=pexp2)
+      removeModal()
+      userComputeComputeCPAG(input$userComputeSource2, input$userComputePfactor1,
+                             input$userComputePexp1, pfactor2, pexp2, input$userComputeLDpop)
+
+    }, ignoreInit=T)
+
+    #######################################################################################################
+    # Observe event function:  User compute tab - compute CPAG button
+    #######################################################################################################
+
+    observeEvent(input$userComputeCompute, {
+
+      userComputeComputeCPAG(input$userComputeSource2, input$userComputePfactor1, input$userComputePexp1,
+                             input$userComputePfactor2, input$userComputePexp2, input$userComputeLDpop)
+
+    }, ignoreInit=T)
+
+    #######################################################################################################
+    # Observe event function:  User compute tab - change in include all SNPs in shared SNP option
+    #######################################################################################################
+
+    observeEvent(input$userComputeSelectionIncludeTableAllSNPshare, {
+
+      renderCPAGtable(currentUserComputeCPAGdata[userComputeResultsTableRowFilter,],
+                      input$userComputeSelectionIncludeTableAllSNPshare,
+                      "userComputeResultsTable")
+
+    }, ignoreInit=T)
 
     #######################################################################################################
     # Observe event function:  User compute tab - change in heatmap metric or top significant phenotype
@@ -1644,7 +1971,7 @@ shinyServer(
                     rowFilter="userComputeResultsTableRowFilter",
                     filterTrait=input$userComputeSelectionFilterTrait,
                     filterSNP=input$userComputeSelectionFilterSNP,
-                    truncSNP=input$userComputeSelectionIncludeTableAllSNPshare,
+                    allSNP=input$userComputeSelectionIncludeTableAllSNPshare,
                     includeCompoundEFO=input$userComputeSelectionIncludeTableCompoundEFO,
                     efoCol=userComputeResultsEFOcol,
                     filterEFOparent=input$userComputeSelectionFilterEFOparent,
@@ -1668,16 +1995,16 @@ shinyServer(
       # Updates are not effective until all output has been pushed to the client
       # This does not guarantee that new values are in effect at the time of the call to renderResults()
       # Therefore, assign values and pass constants as parameter values to renderResults()
-      #updateTextInput(session, "userComputeSelectionFilterTrait", value="")
-      #updateTextInput(session, "userComputeSelectionFilterSNP", value="")
+      updateTextInput(session, "userComputeSelectionFilterTrait", value="")
+      updateTextInput(session, "userComputeSelectionFilterSNP", value="")
       #updateTextInput(session, "userComputeSelectionFilterEFO", value="")
-      #updateTextInput(session, "userComputeSelectionFilterEFOparent", value=vector("character"))
-      #updateCheckboxInput(session, "userComputeSelectionIncludeTableCompoundEFO", value=F)
+      updateTextInput(session, "userComputeSelectionFilterEFOparent", value=vector("character"))
+      updateCheckboxInput(session, "userComputeSelectionIncludeTableCompoundEFO", value=F)
       renderResults(data=currentUserComputeCPAGdata,
                     rowFilter="userComputeResultsTableRowFilter",
                     filterTrait="",
                     filterSNP="",
-                    truncSNP=input$userComputeSelectionIncludeTableAllSNPshare,
+                    allSNP=input$userComputeSelectionIncludeTableAllSNPshare,
                     includeCompoundEFO=F,
                     efoCol=userComputeResultsEFOcol,
                     filterEFOparent=vector("character"),
@@ -1691,6 +2018,19 @@ shinyServer(
                     heatmapNphenotype=input$userComputeSelectionHeatmapNphenotype)
 
     }, ignoreInit=T)
+
+    #######################################################################################################
+    # Configure a download handler for the sample GWAS file on the userCompute tab
+    #######################################################################################################
+
+    output$userComputeSampleGWASdownload <-
+      downloadHandler(filename="iCPAGdb-Sample-GWAS-top_EllinghausPCs_covid19.csv",
+                      contentType="txt/csv",
+                      content=function(file) {
+                                x <- read.table("input/top_EllinghausPCs_covid19-Sample.csv", header=T, sep=",")
+                                write.table(x, file, row.names=F, col.names=T, quote=F, sep=",")
+                              }
+                     )
 
     #######################################################################################################
     # Configure a download handler for the results table of the userCompute tab

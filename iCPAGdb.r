@@ -9,7 +9,7 @@ library("shiny")
 # Specify directory containing ui.r and server.r
 
 # Local dir
-ad <- "C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App/App-Devel"
+ad <- "C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel/App"
 
 # Execute 
 runApp(appDir=ad,
