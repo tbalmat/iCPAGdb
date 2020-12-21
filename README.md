@@ -56,7 +56,7 @@ pyCPAGdb <br/>
 │       ├── EUR_1kg_20130502_maf01.bim <br/>
 │       └── EUR_1kg_20130502_maf01.fam <br/>
 
-3) configure python 3 
+3) configure computing environment for python 3 
 
 The fast way is to install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) and install required package from there.
 
