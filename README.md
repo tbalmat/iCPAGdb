@@ -67,13 +67,15 @@ python3 main.py post_analysis --anno-ontology --anno-cols Trait1 \
 ```
 
 ### example 2
-```sh python3 main.py cpagdb --threads 2 --subtype H2P2 --H2P2-Pcut 1e-7 \
+
+```sh 
+python3 main.py cpagdb --threads 2 --subtype H2P2 --H2P2-Pcut 1e-7 \
   --lddb-pop EUR --outfile output/H2P2-p1e-07-EUR.csv
 ```
 
 ### example 3 (user GWAS)
 
-download example file (iCPAGdb-Sample-GWAS-top_EllinghausPCs_covid19.csv) from "Upload and compute CPAG" page at [here](http://cpag.oit.duke.edu/)
+download COVID-19 GWAS example (iCPAGdb-Sample-GWAS-top_EllinghausPCs_covid19.csv) from "Upload and compute CPAG" page at [here](http://cpag.oit.duke.edu/)
 
 ```sh 
 python main.py usr-gwas --threads 10 --infile iCPAGdb-Sample-GWAS-top_EllinghausPCs_covid19.csv \
