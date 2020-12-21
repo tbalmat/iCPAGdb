@@ -18,16 +18,19 @@ This repo contains two parts
 1) download [PLINK 1.9](https://www.cog-genomics.org/plink/1.9/) and place it to folder "plink_bins"  <br/>
 
 ```sh 
-wget https://www.cog-genomics.org/plink/1.9/ 
+## please choose proper PLINK version, here is an example of Linux version
+
+wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20201019.zip
 ```
 
-2) download database file (~15Gb) to "db" folder from Dropbox [LINK](https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0).
+2) download ziped database file (~15Gb), and decompressed it to "db" folder from Dropbox [LINK](https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0).
 
 ```sh 
-wget https://www.cog-genomics.org/plink/1.9/
+wget https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa\?dl=1  --content-disposition
+
 ```
 
-The following folder structure contains all required codes and data file:<br/>
+The final folder structure contains all required codes and data file: <br/>
 pyCPAGdb <br/>
 ├── _utils.py <br/>
 ├── anno_parent_efo.py <br/>
