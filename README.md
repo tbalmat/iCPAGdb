@@ -14,7 +14,7 @@ This repo contains two parts
 
 # Quick start
 
-## Download PLINK and database
+## Configuration and download database and third-party software
 1) download [PLINK 1.9](https://www.cog-genomics.org/plink/1.9/) and place it to folder "plink_bins"  <br/>
 
 ```sh 
@@ -55,6 +55,28 @@ pyCPAGdb <br/>
 │       ├── EUR_1kg_20130502_maf01.bed <br/>
 │       ├── EUR_1kg_20130502_maf01.bim <br/>
 │       └── EUR_1kg_20130502_maf01.fam <br/>
+
+3) configure python 3 
+
+The fast way is to install [Miniconda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/) and install required package from there.
+
+Create a new environment using conda:
+
+```sh
+conda create -n icpagdb python=3.7
+conda activate icpagdb
+```
+
+install python package using conda:
+
+```sh
+conda install -c conda-forge panda
+conda install -c conda-forge scipy
+conda install -c conda-forge joblib
+conda install -c conda-forge tqdm
+conda install -c conda-forge sqlite
+```
+
 
 ## Run example (Shell command)
 
