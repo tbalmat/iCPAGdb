@@ -10,14 +10,14 @@ Resources for the iCPAGdb web app
 
 # Quick start
 
-## download PLINK and database
+## Download PLINK and database
 1) download PLINK 1.9 () and place to folder "plink_bins"
 2) download database file (~15Gb) to "db" folder from Dropbox (https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0).
 
 The following folder structure contains all required codes and data file:
 "pyCPAGdb 
-├── _utils.py
-├── anno_parent_efo.py
+├── _utils.py <br/>
+├── anno_parent_efo.py <br/>
 ├── main.py
 ├── stats.py
 ├── plink_bins
@@ -42,5 +42,5 @@ The following folder structure contains all required codes and data file:
 
 "
 
-## run example
+## Run example
 
