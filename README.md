@@ -15,15 +15,15 @@ This repo contains two parts
 # Quick start
 
 ## Configuration and download database and third-party software
-1) download [PLINK 1.9](https://www.cog-genomics.org/plink/1.9/) and place it to folder "plink_bins"  <br/>
+1) direct download [PLINK 1.9](https://www.cog-genomics.org/plink/1.9/), or using Linux/Max ```wget``` function  and place it to folder "plink_bins"  <br/>
 
 ```sh 
-## please choose proper PLINK version, here is an example of Linux version
+## please choose proper PLINK version, here is an example of Linux version 
 
 wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20201019.zip
 ```
 
-2) download ziped database file (~15Gb), and decompressed it to "db" folder from Dropbox [LINK](https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0).
+2) download ziped database file (~15Gb), and decompressed it to "db" folder from Dropbox [LINK](https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0). The following is an example of downloading command on Linux/Mac using ```wget```.
 
 ```sh 
 wget https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa\?dl=1  --content-disposition
