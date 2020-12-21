@@ -1,4 +1,8 @@
-# iCPAGdb
+iCPAGdb 
+
+Web browser: http://cpag.oit.duke.edu/ 
+
+This repo contains all codes of the webbrowers.
 
 iCPAGdb is designed to facilitate rapid analysis of genetic correlation across thousands of GWAS simultaneously. Current verion of iCPAGdb contains GWAS summary statistic from >4400 diseases/traits, and allows users to explore pre-computed correlations across all existing diseases and/or upload their own GWAS to identify and explore shared SNPs between their own GWAS and >4400 diseases/traits.
 
