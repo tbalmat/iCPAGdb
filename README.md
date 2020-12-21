@@ -15,7 +15,7 @@ Resources for the iCPAGdb web app
 2) download database file (~15Gb) to "db" folder from Dropbox (https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0).
 
 The following folder structure contains all required codes and data file:
-pyCPAGdb 
+"pyCPAGdb 
 ├── _utils.py
 ├── anno_parent_efo.py
 ├── main.py
@@ -40,7 +40,7 @@ pyCPAGdb
 │       ├── EUR_1kg_20130502_maf01.bim
 │       └── EUR_1kg_20130502_maf01.fam
 
-
+"
 
 ## run example
 
