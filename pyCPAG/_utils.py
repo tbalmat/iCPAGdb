@@ -466,7 +466,7 @@ class query_gwasumdb(object):
     """
     def __init__(self):
         self.dbpath = "./db/"
-        self.gwasdb = "cpag_gwasumstat_v1.1.db"
+        self.gwasdb = "cpag_gwasumstat_v1.2.db"
         # self.gwasdb = "cpag1_gwasumstat20130904.db"
 
         self.check_dbfile()
