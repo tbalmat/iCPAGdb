@@ -15,6 +15,7 @@ options(scipen=999999)
 options(shiny.maxRequestSize=10**9) 
 
 library(shiny)
+library(shinyjs)
 library(DT)
 library(RSQLite)
 library(ggplot2)
@@ -33,8 +34,8 @@ shinyServer(
 
     # Change directories and set some globals
     setwd(c("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel/pyCPAG",
-            "/srv/shiny-server/CPAG/explore/pyCPAG")[1])
-    pyexe <- c("\"C:/Users/Kyung Soon/AppData/Local/Programs/Python/Python37/python.exe\"", "python3")[1]
+            "/srv/shiny-server/CPAG/explore/pyCPAG")[2])
+    pyexe <- c("\"C:/Users/Kyung Soon/AppData/Local/Programs/Python/Python37/python.exe\"", "python3")[2]
     threads <- 2
     gwidth <- 600
     gheightMin <- 600
@@ -64,8 +65,6 @@ shinyServer(
     notifyDuration <- 5
     nLabelTrunc <- 45
     phenH2P2 <- "limited"
-    hideTab("tabsetCPAG", "tabPanelExplore")
-    #showTab("tabsetCPAG", "tabPanelExplore")
     pfactorH2P2 <- 1
     pexpH2P2 <- 5
     pfactorNHGRI <- 5
@@ -75,6 +74,15 @@ shinyServer(
     pmaxH2P2 <- pfactorH2P2*10**-pexpH2P2
     pmaxNHGRI <- pfactorNHGRI*10**-pexpNHGRI
     pmaxOther <- pfactorOther*10**-pexpOther
+    # Hide the Expore tab
+    # Note that, although tab contents are hidden in the ui, the tab itself remains in the tabsetPanel
+    # Hide the tab here then assign title (using the reactive output variable defined in the ui)
+    hideTab("tabsetCPAG", "tabPanelExplore")
+    output$exploreTabTitle <- renderText("")
+    # Hide the styles tab
+    hideTab("tabsetCPAG", "navBarStyles")
+    # Clear any previous upload file name, in case app restarted from browser refresh operation
+    reset("userComputeBrowseFile")
 
     #######################################################################################################
     # Configure review selection table
@@ -495,7 +503,7 @@ shinyServer(
     }
 
     #######################################################################################################
-    # Function:  Filter results table, render data table and heatmap
+    # Function:  Render data table and heatmap
     #######################################################################################################
 
     renderResults <- function(data, rowFilter, filterTrait, filterSNP, allSNP, includeCompoundEFO,
@@ -1042,14 +1050,17 @@ shinyServer(
 
       if(tolower(input$featureEnable)=="exp+") {
         showTab("tabsetCPAG", "tabPanelExplore")
+        # Assign visible title
+        output$exploreTabTitle <- renderText("Explore iCPAGdb associations")
       } else if(tolower(input$featureEnable)=="exp-") {
         hideTab("tabsetCPAG", "tabPanelExplore")
       } else if(tolower(input$featureEnable)=="phen+") {
         phenH2P2 <<- "full"
-      } else if(tolower(input$featureEnable)=="phen+") {
+      } else if(tolower(input$featureEnable)=="phen-") {
         phenH2P2 <<- "limited"
       }
 
+    # Do not ignore, so that initial environment consistent with any values in secret field
     }, ignoreInit=F)
 
     #######################################################################################################
@@ -1163,7 +1174,6 @@ shinyServer(
       }
 
       return(success)
-
     }
 
     #######################################################################################################
@@ -1656,7 +1666,7 @@ shinyServer(
         #                  "Input columns are: ", paste(colnames(userFile), collapse=", "), sep="")
         #}
       } else {
-        result <- "No file specified.  Please upload a file"
+        result <- "No file specified.  Please upload a file."
       }
 
       return(list("result"=result, "uGWASfile"=uGWASfile, "uGWAScol"=uGWAScol))
