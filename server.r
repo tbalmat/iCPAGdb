@@ -33,9 +33,12 @@ shinyServer(
   function(input, output, session) {
 
     # Change directories and set some globals
-    setwd(c("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel/pyCPAG",
-            "/srv/shiny-server/CPAG/explore/pyCPAG")[2])
-    pyexe <- c("\"C:/Users/Kyung Soon/AppData/Local/Programs/Python/Python37/python.exe\"", "python3")[2]
+    os <- 2
+    setwd(c("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel",
+            "/srv/shiny-server/CPAG/explore")[os])
+    oscmd <- c("cmd /c", "")[os]
+    oscmdsep <- c("&&", "\n")[os]
+    pyexe <- c("\"C:/Users/Kyung Soon/AppData/Local/Programs/Python/Python37/python.exe\"", "python3")[os]
     threads <- 2
     gwidth <- 600
     gheightMin <- 600
@@ -52,10 +55,21 @@ shinyServer(
     exploreResultsEFOparentCol <- vector("integer")
     exploreResultsEFOparentTerm <- vector("character")
     largestKnownLogVal <- 347
-    inDir <- "input"
-    outDir <- "output"
-    inDirUserCompute <- "input/userCompute"
-    outDirUserCompute <- "output/userCompute"
+    pyDir <- "pyCPAG"
+    appDir <- "app"
+    pyInDir <- "input"
+    pyOutDir <- "output"
+    pyUserComputeInDir <- "userCompute2"
+    pyUserComputeOutDir <- "userCompute"
+    pyInDirUserCompute <- paste(pyInDir, "/", pyUserComputeInDir, sep="")
+    pyOutDirUserCompute <- paste(pyOutDir, "/", pyUserComputeOutDir, sep="")
+    inDir <- paste(pyDir, "/", pyInDir, sep="")
+    outDir <- paste(pyDir, "/", pyOutDir, sep="")
+    inDirUserCompute <- paste(inDir, "/", pyUserComputeInDir, sep="")
+    outDirUserCompute <- paste(outDir, "/", pyUserComputeOutDir, sep="")
+    logDir <- paste(appDir, "/log", sep="")
+    logFile0 <- "iCPAGlog.csv"
+    logFile <- paste(logDir, "/", logFile0, sep="")
     exploreTabFirst <- T
     currentUserComputeCPAGdata <- data.frame()
     userComputeResultsTableRowFilter <- NULL
@@ -83,6 +97,28 @@ shinyServer(
     hideTab("tabsetCPAG", "navBarStyles")
     # Clear any previous upload file name, in case app restarted from browser refresh operation
     reset("userComputeBrowseFile")
+
+    # Create log file, if it does not exist
+    if(length(which(dir(logDir, logFile0)==logFile0))==0)
+      write("sessionID,date,time,section,operation,parameter1,parameter2,parameter3,parameter4,parameter5,parameter6,status,note", logFile)
+
+    # Create a session ID
+    sessionID <- paste(format(Sys.time(), "%Y%m%d%H%M%S"), "-", paste(sample(0:9, 10, replace=T), collapse=""), sep="")
+
+    #######################################################################################################
+    # Function:  Write activity entries to log
+    #######################################################################################################
+
+    writeLog <- function(section, operation, parameter1="", parameter2="", parameter3="", parameter4="",
+                         parameter5="", parameter6="", status, note="") {
+
+      write(paste(sessionID, ",", format(Sys.time(), "%Y-%m-%d,%H:%M:%S"), ",", section, ",", operation, ",\"",
+                  parameter1, "\",\"", parameter2, "\",\"", parameter3, "\",\"", parameter4, "\",\"",
+                  parameter5, "\",\"", parameter6, "\",",  status, ",\"",
+                  note, "\"", sep=""),
+            logFile, append=T)
+
+    }
 
     #######################################################################################################
     # Configure review selection table
@@ -807,86 +843,105 @@ shinyServer(
 
     observeEvent(input$reviewSelectionTable_cells_selected, {
 
-        if(length(input$reviewSelectionTable_cell_clicked)>0) {
+      # This event is executed when a cell in the review table is clicked, but not when a hyperlink
+      # within a cell is clicked
 
-          # Ignore cell selection when cell contains an HTML anchor tag
-          # Note that _cell_clicked returns a list with elements:
-          # row = row in data frame corresponding to cell clicked (reordering rows maintains row IDs)
-          # col = 0-based col of cell clicked
-          # value = data frame cell contents
-          # Note that if selection mode of multiple is specified in renderTable(), then multiple cells
-          # will be reported by _cell_clicked, all at the top list level
-          # Referencing list elements by name returns the first encountered, ignoring multiples
-          if(substring(as.character(input$reviewSelectionTable_cell_clicked[["value"]]), 1, 7)!="<a href") {
+      if(length(input$reviewSelectionTable_cell_clicked)>0) {
 
-            # Retrieve file name of specified precomputed results corresponding to selected row number
-            fn <- reviewCPAG[input$reviewSelectionTable_cell_clicked[["row"]][1],"file"]
-            cat(paste("fileName:  ", fn, "\n", sep=""), file=stderr())
+        # Display precomputed results corresponding to selected row of review table
+        # Note that _cell_clicked returns a list with elements:
+        # row = row in data frame corresponding to cell clicked (reordering rows maintains row IDs)
+        # col = 0-based col of cell clicked
+        # value = data frame cell contents
+        # Note that if selection mode of multiple is specified in renderTable(), then multiple cells
+        # will be reported by _cell_clicked, all at the top list level
+        # Referencing list elements by name returns the first encountered, ignoring multiples
+        if(substring(as.character(input$reviewSelectionTable_cell_clicked[["value"]]), 1, 7)!="<a href") {
 
-            # Proceed if file exists
-            if(length(which(dir(outDir, pattern=paste("^", fn, "$", sep=""))==fn))==1) {
+          # Get selected row number
+          trow <- input$reviewSelectionTable_cell_clicked[["row"]][1]
 
-              # Retrieve CPAG results
-              # Save in global data frame to be available in other reactive functions
-              progress <- shiny::Progress$new()
-              progress$set(message="Reading CPAG data", value=0.5)
-              currentReviewCPAGdata <<- read.table(paste(outDir, "/", fn, sep=""), header=T, sep=",", quote="\"")
-              progress$close()
+          # Retrieve file name of specified precomputed results corresponding to selected row number
+          fn <- reviewCPAG[trow,"file"]
+          cat(paste("fileName:  ", fn, "\n", sep=""), file=stderr())
 
-              # Index EFO columns
-              reviewResultsEFOcol <<- which(regexpr("Trait.\\_EFO", colnames(currentReviewCPAGdata))>0)
-              reviewResultsEFOparentCol <<- which(regexpr("Trait.\\_ParentTerm", colnames(currentReviewCPAGdata))>0)
+          # Proceed if file exists
+          if(length(which(dir(outDir, pattern=paste("^", fn, "$", sep=""))==fn))==1) {
 
-              # Compose list of unique EFO parent terms
-              if(length(reviewResultsEFOparentCol)>0) {
-                a <- na.omit(unlist(currentReviewCPAGdata[,reviewResultsEFOparentCol]))
-                if(length(a)>0) {
-                  reviewResultsEFOparentTerm <<- sort(unique(trimws(unlist(strsplit(a, ",")))))
-                } else {
-                  reviewResultsEFOparentTerm <<- vector("character")
-                }
+            # Retrieve CPAG results
+            # Save in global data frame to be available in other reactive functions
+            progress <- shiny::Progress$new()
+            progress$set(message="Reading CPAG data", value=0.5)
+            currentReviewCPAGdata <<- read.table(paste(outDir, "/", fn, sep=""), header=T, sep=",", quote="\"")
+            progress$close()
+
+            # Index EFO columns
+            reviewResultsEFOcol <<- which(regexpr("Trait.\\_EFO", colnames(currentReviewCPAGdata))>0)
+            reviewResultsEFOparentCol <<- which(regexpr("Trait.\\_ParentTerm", colnames(currentReviewCPAGdata))>0)
+
+            # Compose list of unique EFO parent terms
+            if(length(reviewResultsEFOparentCol)>0) {
+              a <- na.omit(unlist(currentReviewCPAGdata[,reviewResultsEFOparentCol]))
+              if(length(a)>0) {
+                reviewResultsEFOparentTerm <<- sort(unique(trimws(unlist(strsplit(a, ",")))))
               } else {
                 reviewResultsEFOparentTerm <<- vector("character")
               }
-              updateSelectInput(session, "reviewSelectionFilterEFOparent", choices=reviewResultsEFOparentTerm)
-
-              # Reset filters
-              # Updates are not effective until all output has been pushed to the client
-              # This does not guarantee that new values are in effect at the time of the call to renderResults()
-              # Therefore, assign values and pass constants as parameter values to renderResults()
-              updateTextInput(session, "reviewSelectionFilterTrait", value="")
-              updateTextInput(session, "reviewSelectionFilterSNP", value="")
-              #updateTextInput(session, "reviewSelectionFilterEFO", value="")
-              updateTextInput(session, "reviewSelectionFilterEFOparent", value=vector("character"))
-              updateCheckboxInput(session, "reviewSelectionIncludeTableCompoundEFO", value=F)
-              renderResults(data=currentReviewCPAGdata,
-                            rowFilter="reviewResultsTableRowFilter",
-                            filterTrait="",
-                            filterSNP="",
-                            allSNP=input$reviewSelectionIncludeTableAllSNPshare,
-                            includeCompoundEFO=F,
-                            efoCol=reviewResultsEFOcol,
-                            filterEFOparent=vector("character"),
-                            efoParentCol=reviewResultsEFOparentCol,
-                            tabset="tabsetReviewResults",
-                            tableTab="tabPanelReviewResultsTable",
-                            tableName="reviewResultsTable",
-                            plotTab="tabPanelReviewResultsHeatmap",
-                            plotName="reviewResultsHeatmap",
-                            heatmapMetric=input$reviewSelectionHeatmapMetric,
-                            heatmapNphenotype=input$reviewSelectionHeatmapNphenotype)
             } else {
-              output$reviewResultsTable <- DT::renderDataTable(NULL)
-              output$reviewResultsHeatmap <- renderPlotly(NULL)
-              showModal(modalDialog(HTML("No CPAG data exist for specified GWAS features"),
-                        title="iCPAGdb Review", size="m", easyClose=T, footer=modalButton("OK")))
+              reviewResultsEFOparentTerm <<- vector("character")
             }
+            updateSelectInput(session, "reviewSelectionFilterEFOparent", choices=reviewResultsEFOparentTerm)
+
+            # Reset filters
+            # Updates are not effective until all output has been pushed to the client
+            # This does not guarantee that new values are in effect at the time of the call to renderResults()
+            # Therefore, assign values and pass constants as parameter values to renderResults()
+            updateTextInput(session, "reviewSelectionFilterTrait", value="")
+            updateTextInput(session, "reviewSelectionFilterSNP", value="")
+            #updateTextInput(session, "reviewSelectionFilterEFO", value="")
+            updateTextInput(session, "reviewSelectionFilterEFOparent", value=vector("character"))
+            updateCheckboxInput(session, "reviewSelectionIncludeTableCompoundEFO", value=F)
+            renderResults(data=currentReviewCPAGdata,
+                          rowFilter="reviewResultsTableRowFilter",
+                          filterTrait="",
+                          filterSNP="",
+                          allSNP=input$reviewSelectionIncludeTableAllSNPshare,
+                          includeCompoundEFO=F,
+                          efoCol=reviewResultsEFOcol,
+                          filterEFOparent=vector("character"),
+                          efoParentCol=reviewResultsEFOparentCol,
+                          tabset="tabsetReviewResults",
+                          tableTab="tabPanelReviewResultsTable",
+                          tableName="reviewResultsTable",
+                          plotTab="tabPanelReviewResultsHeatmap",
+                          plotName="reviewResultsHeatmap",
+                          heatmapMetric=input$reviewSelectionHeatmapMetric,
+                          heatmapNphenotype=input$reviewSelectionHeatmapNphenotype)
+
+            # Log GWAS selection
+            writeLog(section="Review", operation="SelectGWAS",
+                     parameter1=reviewCPAG[trow,"Description"],
+                     parameter2=reviewCPAG[trow,"GWAS_1_source"],
+                     parameter3=reviewCPAG[trow,"GWAS_2_source"],
+                     parameter4=reviewCPAG[trow,"p_threshold_GWAS_1"],
+                     parameter5=reviewCPAG[trow,"p_threshold_GWAS_2"],
+                     parameter6=reviewCPAG[trow,"LD_population"],
+                     status="success")
+
+          } else {
+
+            output$reviewResultsTable <- DT::renderDataTable(NULL)
+            output$reviewResultsHeatmap <- renderPlotly(NULL)
+            showModal(modalDialog(HTML("No CPAG data exist for specified GWAS features"),
+                      title="iCPAGdb Review", size="m", easyClose=T, footer=modalButton("OK")))
+            # Log error
+            writeLog(section="Review", operation="SelectGWAS", parameter1=reviewCPAG[trow,"file"],
+                     status="error", note="File does not exist")
 
           }
-
         }
-
-      }, ignoreInit=T)
+      }
+    }, ignoreInit=T)
 
     #######################################################################################################
     # Observe event function:  Review tab - apply filters
@@ -911,6 +966,9 @@ shinyServer(
                     plotName="reviewResultsHeatmap",
                     heatmapMetric=input$reviewSelectionHeatmapMetric,
                     heatmapNphenotype=input$reviewSelectionHeatmapNphenotype)
+
+      # Log action
+      writeLog(section="Review", operation="filter", status="success")
 
     }, ignoreInit=T)
 
@@ -967,6 +1025,8 @@ shinyServer(
                                        efoCol=reviewResultsEFOcol,
                                        filterEFOparent=input$reviewSelectionFilterEFOparent,
                                        efoParentCol=reviewResultsEFOparentCol)
+                                # Log action
+                                writeLog(section="Review", operation="download", parameter1="results", status="success")
                                 write.table(currentReviewCPAGdata[k,], file, row.names=F, col.names=T, quote=T, sep=",")
                               }
                      )
@@ -1015,6 +1075,9 @@ shinyServer(
                       input$reviewSelectionIncludeTableAllSNPshare,
                       "reviewResultsTable")
 
+      # Log action
+      writeLog(section="Review", operation="allSNP", status="success")
+
     }, ignoreInit=T)
 
     #######################################################################################################
@@ -1040,6 +1103,9 @@ shinyServer(
       # Move focus to the plot tab
       updateTabsetPanel(session, "tabsetReviewResults", "tabPanelReviewResultsHeatmap")
 
+      # Log action
+      writeLog(section="Review", operation="heatmapMetricTopAdjust", status="success")
+
     }, ignoreInit=T)
 
     #######################################################################################################
@@ -1059,6 +1125,10 @@ shinyServer(
       } else if(tolower(input$featureEnable)=="phen-") {
         phenH2P2 <<- "limited"
       }
+
+      # Log action
+      if(input$featureEnable!="")
+        writeLog(section="", operation="featureEnable", parameter1=input$featureEnable, status="success")
 
     # Do not ignore, so that initial environment consistent with any values in secret field
     }, ignoreInit=F)
@@ -1241,13 +1311,17 @@ shinyServer(
 
           # File exists - read data, render table and heatmap
           exploreReadCPAGandRender(paste(outDir, "/", cpag, sep=""))
+          # Log action
+          writeLog(section="Explore", operation="computeCPAG",
+          parameter1=cpag, note="CPAG results exist - no computation required", status="success")
 
         } else {
 
           # File does not exist
           # Compute results for requested GWAS sets, p-thresholds, and LD population
           # Compose python command to execute CPAG function
-          pycmd <- paste(pyexe, " main.py cpagdb --threads ", threads, 
+          pycmd <- paste(oscmd, " cd ", pyDir, " ", oscmdsep, " ",
+                         pyexe, " main.py cpagdb --threads ", threads, 
                          ifelse(length(kh)>0,
                                 paste(" --subtype ", s[kh[1]], " --subtype ", s[-kh[1]], sep=""),
                                 ifelse(length(kn)>1,
@@ -1260,19 +1334,21 @@ shinyServer(
                          ifelse(!s[1] %in% c("H2P2", "NHGRI") | !s[2] %in% c("H2P2", "NHGRI"),
                                 paste(" --Pcut ", pfac[ko[1]], "e-", px[ko[1]], sep=""), ""),
                          " --lddb-pop ", ldpop,
-                         " --outfile \"", outDir, "/", cpag, "\"", sep="")
+                         " --outfile \"", pyOutDir, "/", cpag, "\"", sep="")
           cat(paste("\npycmd:  ", pycmd, "\n\n", sep=""), file=stderr())
           # Compose commands to include ontology, for NHGRI results only
           if(length(kh)==0 & length(kn)>0) {
-            pycmd2 <- paste(pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait1",
-                            " --infile \"", outDir, "/", cpag, "\" --outfile \"", outDir, "/", cpag, "\"", sep="")
+            pycmd2 <- paste(oscmd, " cd ", pyDir, " ", oscmdsep, " ",
+                            pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait1", " --infile \"",
+                            pyOutDir, "/", cpag, "\" --outfile \"", pyOutDir, "/", cpag, "\"", sep="")
             cat(paste("\npycmd2:  ", pycmd2, "\n\n", sep=""), file=stderr())
           } else {
             pycmd2 <- ""
           }
           if(length(kh)==1 & length(kn)==1 | length(kn)==2) {
-            pycmd3 <- paste(pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait2",
-                            " --infile \"", outDir, "/", cpag, "\" --outfile \"", outDir, "/", cpag, "\"", sep="")
+            pycmd3 <- paste(oscmd, " cd ", pyDir, " ", oscmdsep, " ",
+                            pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait2", " --infile \"",
+                            pyOutDir, "/", cpag, "\" --outfile \"", pyOutDir, "/", cpag, "\"", sep="")
             cat(paste("\npycmd3:  ", pycmd3, "\n\n", sep=""), file=stderr())
           } else {
             pycmd3 <- ""
@@ -1312,11 +1388,17 @@ shinyServer(
                  progress$close()
                  if(is.null(attributes(y))) {
                    exploreReadCPAGandRender(paste(outDir, "/", cpag, sep=""))
+                   # Log action
+                   writeLog(section="Explore", operation="computeCPAG",
+                   parameter1=pycmd, parameter2=pycmd2, parameter3=pycmd3, status="success")
                  } else {
                    output$exploreResultsTable <- DT::renderDataTable(NULL)
                    output$exploreResultsHeatmap <- renderPlotly(NULL)
                    showModal(modalDialog(HTML("Error while computing CPAG"),
                              title="iCPAGdb Explore", size="m", easyClose=T, footer=modalButton("OK")))
+                   # Log action
+                   writeLog(section="Explore", operation="computeCPAG",
+                   parameter1=pycmd, parameter2=pycmd2, parameter3=pycmd3, note="CPAG non-zero exit code", status="error")
 
                  }
                })
@@ -1333,6 +1415,8 @@ shinyServer(
       } else {
         output$exploreResultsTable <- DT::renderDataTable(NULL)
         output$exploreResultsHeatmap <- renderPlotly(NULL)
+        writeLog(section="Explore", operation="computeCPAG",
+        parameter1=pycmd, note="Error in parameter value verification", status="error")
       }
 
     }
@@ -1434,6 +1518,13 @@ shinyServer(
                          input$explorePexp1, input$explorePfactor2, input$explorePexp2,
                          input$exploreLDpop)
 
+      # Log action
+      writeLog(section="Explore", operation="computeReq",
+               parameter1=input$exploreSource1, parameter2=input$exploreSource2,
+               parameter3=paste(input$explorePfactor1, "e-", sprintf("%02d", input$explorePexp1), sep=""),
+               parameter4=paste(input$explorePfactor2, "e-", sprintf("%02d", input$explorePexp2), sep=""),
+               parameter5=input$exploreLDpop, status="")
+
     }, ignoreInit=T)
 
     #######################################################################################################
@@ -1445,6 +1536,9 @@ shinyServer(
       renderCPAGtable(currentExploreCPAGdata[exploreResultsTableRowFilter,],
                       input$exploreSelectionIncludeTableAllSNPshare,
                       "exploreResultsTable")
+
+      # Log action
+      writeLog(section="Explore", operation="allSNP", status="success")
 
     }, ignoreInit=T)
 
@@ -1471,6 +1565,9 @@ shinyServer(
       # Move focus to the plot tab
       updateTabsetPanel(session, "tabsetExploreResults", "tabPanelExploreResultsHeatmap")
 
+      # Log action
+      writeLog(section="Explore", operation="heatmapMetricTopAdjust", status="success")
+
     }, ignoreInit=T)
 
     #######################################################################################################
@@ -1496,6 +1593,9 @@ shinyServer(
                     plotName="reviewExploresHeatmap",
                     heatmapMetric=input$exploreSelectionHeatmapMetric,
                     heatmapNphenotype=input$exploreSelectionHeatmapNphenotype)
+
+      # Log action
+      writeLog(section="Explore", operation="filter", status="success")
 
     }, ignoreInit=T)
 
@@ -1552,6 +1652,8 @@ shinyServer(
                                        efoCol=exploreResultsEFOcol,
                                        filterEFOparent=input$exploreSelectionFilterEFOparent,
                                        efoParentCol=exploreResultsEFOparentCol)
+                                # Log action
+                                writeLog(section="Explore", operation="download", parameter1="results", status="success")
                                 write.table(currentExploreCPAGdata[k,], file, row.names=F, col.names=T, quote=T, sep=",")
                               }
                      )
@@ -1578,8 +1680,14 @@ shinyServer(
           title="iCPAGdb Compute", size="l", easyClose=T,
           footer=modalButton("OK")))
  
-    }, ignoreInit=T)
+      # Log action
+      writeLog(section="Compute", operation="uploadFile",
+               parameter1=input$userComputeBrowseFile[,"name"],
+               parameter2=input$userComputeBrowseFile[,"size"],
+               parameter3=input$userComputeBrowseFile[,"datapath"],
+               status="success")
 
+    }, ignoreInit=T)
 
     #######################################################################################################
     # Function:  Read uploaded (temp) file and save as a csv
@@ -1648,25 +1756,59 @@ shinyServer(
                 progress$close()
                 result <- ""
                 cat(paste("User input GWAS file created: ", uGWASfile, ".csv", "\n", sep=""), file=stderr())
+                # Log action
+                writeLog(section="Compute", operation="uploadCopy",
+                         parameter1=input$userComputeBrowseFile[,"name"],
+                         parameter2=paste(uGWASfile, ".csv", sep=""),
+                         parameter3=input$userComputeSNPcol,
+                         parameter4=input$userComputePcol,
+                         parameter5=input$userComputeDelimiter,
+                         status="success")
               } else {
                 cat(paste("Cannot create user upload file for: ", input$userComputeBrowseFile[,"name"], "\n", sep=""), file=stderr())
                 result <- "Cannot process upload file.  Please upload again."
+                writeLog(section="Compute", operation="uploadCopy",
+                         parameter1=input$userComputeBrowseFile[,"name"],
+                         parameter2="Cannot copy upload file",
+                         status="error")
               }
 
             } else {
               result <- paste("Specified P (significance) column is missing in uploaded GWAS file<br>",
                               "Input columns are: ", paste(colnames(userFile), collapse=", "), sep="")
+              writeLog(section="Compute", operation="uploadCopy",
+                       parameter1=input$userComputeBrowseFile[,"name"],
+                       parameter2=input$userComputePcol,
+                       parameter3=input$userComputeDelimiter,
+                       note="Specified P column missing",
+                       status="error")
             }
           } else {
             result <- paste("Specified SNP column is missing in uploaded GWAS file<br>",
                             "Input columns are: ", paste(colnames(userFile), collapse=", "), sep="")
+            writeLog(section="Compute", operation="uploadCopy",
+                     parameter1=input$userComputeBrowseFile[,"name"],
+                     parameter2=input$userComputeSNPcol,
+                     parameter3=input$userComputeDelimiter,
+                     note="Specified SNP column missing",
+                     status="error")
           }
         #} else {
         #  result <- paste("Specified phenotype (trait) column is missing in uploaded GWAS file. ",
         #                  "Input columns are: ", paste(colnames(userFile), collapse=", "), sep="")
+        #  writeLog(section="Compute", operation="uploadCopy",
+        #           parameter1=input$userComputeBrowseFile[,"name"],
+        #           parameter2=input$userComputePhenotypeCol,
+        #           parameter=input$userComputeDelimiter,
+        #           note="Specified phenotype column missing",
+        #           status="error")
         #}
       } else {
         result <- "No file specified.  Please upload a file."
+        writeLog(section="Compute", operation="uploadCopy",
+                 parameter1=input$userComputeBrowseFile[,"name"],
+                 note="File name missing in upload specification",
+                 status="error")
       }
 
       return(list("result"=result, "uGWASfile"=uGWASfile, "uGWAScol"=uGWAScol))
@@ -1753,8 +1895,9 @@ shinyServer(
                               ldpop, ".csv", sep="")
 
             # Compose python command
-            pycmd <- paste(pyexe, " main.py usr-gwas --threads ", threads,
-                           " --infile \"", inDirUserCompute, "/", f[["uGWASfile"]], ".csv\"",
+            pycmd <- paste(oscmd, " cd ", pyDir, " ", oscmdsep, " ",
+                           pyexe, " main.py usr-gwas --threads ", threads,
+                           " --infile \"", pyInDirUserCompute, "/", f[["uGWASfile"]], ".csv\"",
                            " --delimitor \",\"",
                            " --usr-pcut ", pfactor1, "e-", pexp1,
                            #" --usr-pheno-name ", f[["uGWAScol"]]["phenotype"],
@@ -1764,15 +1907,16 @@ shinyServer(
                            " --cpagdb-pcut ", pfactor2, "e-", pexp2,
                            " --ld-clump 1",
                            " --lddb-pop ", ldpop,
-                           " --outfile \"", outDirUserCompute, "/", cpagFile, "\"", sep="")
+                           " --outfile \"", pyOutDirUserCompute, "/", cpagFile, "\"", sep="")
 
             cat(paste("\npycmd:  ", pycmd, "\n\n", sep=""), file=stderr())
 
             # Compose commands to include ontology, for NHGRI results only
             if(source2=="NHGRI") {
-              pycmd2 <- paste(pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait2",
-                              " --infile \"", outDirUserCompute, "/", cpagFile, "\" --outfile \"",
-                              outDirUserCompute, "/", cpagFile, "\"", sep="")
+              pycmd2 <- paste(oscmd, " cd ", pyDir, " ", oscmdsep, " ",
+                              pyexe, " main.py post_analysis --anno-ontology --anno-cols Trait2", " --infile \"",
+                              pyOutDirUserCompute, "/", cpagFile, "\" --outfile \"", pyOutDirUserCompute,
+                              "/", cpagFile, "\"", sep="")
               cat(paste("\npycmd2:  ", pycmd2, "\n\n", sep=""), file=stderr())
             } else {
               pycmd2 <- ""
@@ -1853,6 +1997,10 @@ shinyServer(
                                      heatmapMetric=input$userComputeSelectionHeatmapMetric,
                                      heatmapNphenotype=input$userComputeSelectionHeatmapNphenotype)
 
+                       # Log action
+                       writeLog(section="Compute", operation="computeCPAG", parameter1=pycmd,
+                                parameter2=pycmd2, status="success")
+
                        # Clear filter controls
                        updateTextInput(session, "userComputeSelectionFilterTrait", value="")
                        updateTextInput(session, "userComputeSelectionFilterSNP", value="")
@@ -1866,18 +2014,26 @@ shinyServer(
                        showModal(modalDialog(HTML(paste("No results returned for requested CPAG parameter values<br>",
                                                         "Consider relaxing p-thresholds"), sep=""),
                                              title="iCPAGdb Compute", size="m", easyClose=T, footer=modalButton("OK")))
+                       writeLog(section="Compute", operation="computeCPAG",
+                       parameter1=pycmd, parameter2=pycmd2,
+                       note="No results returned for requested CPAG parameter values",
+                       status="error")
                      }
                    } else {
                      output$userComputeResultsTable <- DT::renderDataTable(NULL)
                      output$userComputeResultsHeatmap <- renderPlotly(NULL)
                      showModal(modalDialog(HTML(paste("Error while computing CPAG<br>", paste(y, collapse="<br>", sep=""), sep="")),
                                            title="iCPAGdb Compute", size="m", easyClose=T, footer=modalButton("OK")))
+                       writeLog(section="Compute", operation="computeCPAG",
+                       parameter1=pycmd, parameter2=pycmd2, note="Error while computing CPAG", status="error")
                    }
                  })
 
           } else {
             output$userComputeResultsTable <- DT::renderDataTable(NULL)
             output$userComputeResultsHeatmap <- renderPlotly(NULL)
+            writeLog(section="Compute", operation="computeCPAG",
+                     note="Error in CPAG compute parameter values", status="error")
           }
 
         } else {
@@ -1885,13 +2041,17 @@ shinyServer(
           output$userComputeResultsHeatmap <- renderPlotly(NULL)
           showModal(modalDialog(HTML("Upload file does not exist.  Please upload and try again."),
                                 title="iCPAGdb Compute", size="m", easyClose=T, footer=modalButton("OK")))
-          cat(paste("User compute, upload file does not exist, file:", f, sep=""), file=stderr())
+          cat(paste("User compute, upload file does not exist, file:", f[["uGWASfile"]], sep=""), file=stderr())
+          writeLog(section="Compute", operation="computeCPAG", parameter1=f[["uGWASfile"]],
+                   note="Upload file does not exist", status="error")
         }
 
       } else {
         output$userComputeResultsTable <- DT::renderDataTable(NULL)
         output$userComputeResultsHeatmap <- renderPlotly(NULL)
         showModal(modalDialog(HTML(f[["result"]]), title="iCPAGdb Compute", size="m", easyClose=T, footer=modalButton("OK")))
+        writeLog(section="Compute", operation="computeCPAG", parameter1=f[["result"]],
+                 note="Error validating input file", status="error")
       }
 
     }
@@ -1931,6 +2091,13 @@ shinyServer(
       userComputeComputeCPAG(input$userComputeSource2, input$userComputePfactor1, input$userComputePexp1,
                              input$userComputePfactor2, input$userComputePexp2, input$userComputeLDpop)
 
+      # Log action
+      writeLog(section="Compute", operation="computeReq",
+               parameter1=input$userComputeSource1, parameter2=input$userComputeSource2,
+               parameter3=paste(input$userComputePfactor1, "e-", sprintf("%02d", input$userComputePexp1), sep=""),
+               parameter4=paste(input$userComputePfactor2, "e-", sprintf("%02d", input$userComputePexp2), sep=""),
+               parameter5=input$userComputeLDpop, status="")
+
     }, ignoreInit=T)
 
     #######################################################################################################
@@ -1942,6 +2109,9 @@ shinyServer(
       renderCPAGtable(currentUserComputeCPAGdata[userComputeResultsTableRowFilter,],
                       input$userComputeSelectionIncludeTableAllSNPshare,
                       "userComputeResultsTable")
+
+      # Log action
+      writeLog(section="Compute", operation="allSNP", status="success")
 
     }, ignoreInit=T)
 
@@ -1968,6 +2138,9 @@ shinyServer(
       # Move focus to the plot tab
       updateTabsetPanel(session, "tabsetUserComputeResults", "tabPanelUserComputeResultsHeatmap")
 
+      # Log action
+      writeLog(section="Compute", operation="heatmapMetricTopAdjust", status="success")
+
     }, ignoreInit=T)
 
     #######################################################################################################
@@ -1993,6 +2166,9 @@ shinyServer(
                     plotName="userComputeResultsHeatmap",
                     heatmapMetric=input$userComputeSelectionHeatmapMetric,
                     heatmapNphenotype=input$userComputeSelectionHeatmapNphenotype)
+
+      # Log action
+      writeLog(section="Compute", operation="filter", status="success")
 
     }, ignoreInit=T)
 
@@ -2037,7 +2213,9 @@ shinyServer(
       downloadHandler(filename="iCPAGdb-Sample-GWAS-top_EllinghausPCs_covid19.csv",
                       contentType="txt/csv",
                       content=function(file) {
-                                x <- read.table("input/top_EllinghausPCs_covid19-Sample.csv", header=T, sep=",")
+                                x <- read.table(paste(inDir, "/top_EllinghausPCs_covid19-Sample.csv", sep=""), header=T, sep=",")
+                                # Log action
+                                writeLog(section="Compute", operation="download", parameter1="sampleInput", status="success")
                                 write.table(x, file, row.names=F, col.names=T, quote=F, sep=",")
                               }
                      )
@@ -2062,6 +2240,8 @@ shinyServer(
                                        efoCol=userComputeResultsEFOcol,
                                        filterEFOparent=input$userComputeSelectionFilterEFOparent,
                                        efoParentCol=userComputeResultsEFOparentCol)
+                                # Log action
+                                writeLog(section="Compute", operation="download", parameter1="results", status="success")
                                 write.table(currentUserComputeCPAGdata[k,], file, row.names=F, col.names=T, quote=T, sep=",")
                               }
                      )

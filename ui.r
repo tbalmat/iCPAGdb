@@ -15,8 +15,8 @@ library(plotly)
 library(RSQLite)
 
 # Set current working directory to project python and data resources
-setwd(c("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel",
-        "/srv/shiny-server/CPAG/explore")[2])
+os <- 2
+setwd(c("C:/Projects/Duke/H2P2GenomeWideAssociationStudy/CPAG/iCPAGdb/App-Devel", "/srv/shiny-server/CPAG/explore")[os])
 
 # Specify database location
 dbloc <- "pyCPAG/db/cpag_gwasumstat_v1.1.db"
