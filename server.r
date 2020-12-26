@@ -38,9 +38,9 @@ shinyServer(
             "/srv/shiny-server/CPAG/explore")[os])
     oscmd <- c("cmd /c", "")[os]
     #oscmd <- c("", "")[os]
-    oscmdsep <- c("&&", "\n")[os]
+    oscmdsep <- c("&&", ";")[os]
     pyexe <- c("\"C:/Users/Kyung Soon/AppData/Local/Programs/Python/Python37/python.exe\"", "python3")[os]
-    threads <- 2
+    threads <- 1
     gwidth <- 600
     gheightMin <- 600
     gwidthMax <- 2000
@@ -1460,11 +1460,12 @@ shinyServer(
                    # continues processing while the future/promise sequence executed independently
                    writeLog(section="Explore", operation="computeCPAG", parameter1=q[["q0"]],
                             parameter2=ifelse(q[["cpagPhase"]]==1, pycmd, ifelse(q[["cpagPhase"]]==2, pycmd2, pycmd3)),
-                            parameter3=q[["t0"]], note="CPAG output file not found", status="error")
+                            parameter3=q[["q0"]], parameter4=q[["t0"]], note="CPAG output file not found", status="error")
                    msgWindow("ERROR", "Explore compute CPAG",
                              c(paste("Computed CPAG file ", outDirUserCompute, "/", cpagFile, " does not exist", sep=""),
-                             "Occurred during execution of:",
-                             parameter2=ifelse(q[["cpagPhase"]]==1, pycmd, ifelse(q[["cpagPhase"]]==2, pycmd2, pycmd3))))
+                               "Occurred during execution of:",
+                               parameter2=ifelse(q[["cpagPhase"]]==1, pycmd, ifelse(q[["cpagPhase"]]==2, pycmd2, pycmd3)),
+                               "<b>CPAG output follows</b>", q[["q0"]]))
                  }
 
                } else {
@@ -2104,6 +2105,7 @@ shinyServer(
               }) %...>%
               (function(q) {
                  progress$close()
+
                  cat(paste("Execution time: ", q[["t0"]], "\n", collapse=" "), file=stderr())
                  if(attr(q[["q0"]], "status")==0) {
 
@@ -2163,12 +2165,17 @@ shinyServer(
                    } else {
                      # Treat error here since the outer function (where future environment spawned)
                      # continues processing while the future/promise sequence executed independently
+                     # Return contents of CPAG function call, since it may contain useful information on why
+                     # a file was not generated (a common cause is the simple absence of an intersection
+                     # of SNPs and phenotypes between the two GWAS sets at the specified p-threshold levels)
                      writeLog(section="Compute", operation="computeCPAG", parameter1=q[["q0"]],
-                              parameter2=ifelse(q[["cpagPhase"]]==1, pycmd, pycmd2), parameter3=q[["t0"]],
+                              parameter2=ifelse(q[["cpagPhase"]]==1, pycmd, pycmd2),
+                              parameter3=q[["q0"]],  parameter4=q[["t0"]],
                               note="CPAG output file not found", status="error")
                      msgWindow("ERROR", "User Compute compute CPAG",
                                c(paste("Computed CPAG file ", outDirUserCompute, "/", cpagFile, " does not exist", sep=""),
-                                 "Occurred during execution of:", ifelse(q[["cpagPhase"]]==1, pycmd, pycmd2)))
+                                 "Occurred during execution of:", ifelse(q[["cpagPhase"]]==1, pycmd, pycmd2),
+                                 "<b>CPAG output follows</b>", q[["q0"]]))
                    }
 
                  } else {
