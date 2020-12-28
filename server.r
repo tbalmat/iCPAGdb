@@ -40,7 +40,7 @@ shinyServer(
     #oscmd <- c("", "")[os]
     oscmdsep <- c("&&", ";")[os]
     pyexe <- c("\"C:/Users/Kyung Soon/AppData/Local/Programs/Python/Python37/python.exe\"", "python3")[os]
-    threads <- 1
+    threads <- 2
     gwidth <- 600
     gheightMin <- 600
     gwidthMax <- 2000
