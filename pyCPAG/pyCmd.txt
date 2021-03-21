@@ -1,2 +1,0 @@
-cd C:\Projects\Duke\H2P2GenomeWideAssociationStudy\CPAG\iCPAGdb\App\pyCPAG
-"C:\Users\Kyung Soon\AppData\Local\Programs\Python\Python37\python.exe" main.py cpagdb --threads 2 --subtype H2P2 --subtype H2P2 --H2P2-Pcut 1e-5 --lddb-pop EAS --outfile output/H2P2-H2P2-p1e-05-p1e-05-EAS.csv
