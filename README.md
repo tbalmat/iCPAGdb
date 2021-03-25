@@ -29,7 +29,7 @@ wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20201019.zip
 2) download ziped database file (~33 Gb), and decompressed it to "db" folder from Dropbox [LINK](https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0). Here is an example of downloading the required database using using ```wget``` on Linux/Mac OS.
 
 ```sh 
-wget https://www.dropbox.com/s/28xd2kn1jrtxfzp/cpag_gwasumstat_v1.1.EUR_ld0.4.db  --content-disposition
+wget https://www.dropbox.com/sh/na23jflxcgk0nib/AAAKi--r8cS44U8VboFWBTP2a/cpag_gwasumstat_v1.1.EUR_ld0.4.db  --content-disposition
 
 ```
 
