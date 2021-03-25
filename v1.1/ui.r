@@ -43,7 +43,7 @@ shinyUI(
 
     title="iCPAGdb",
 
-    # Configur some styles
+    # Configure some styles
     # It is better to apply these to individual objects when possible, to guarantee application
     # For instance, the navbarPage, below, specifies a theme, which causes styles established here to be ignored
     # Defining styles as the final step of the navbarPage definition overrides styles defined in the theme
@@ -298,7 +298,7 @@ shinyUI(
                         style="display:inline-block; vertical-align:top; margin-top:0px; width:48%"
                       ),
                       div(
-                        HTML("Note: p-threshold maximums are H2P2 = 1X10<sup>-5</sup>, NHGRI = 5X10<sup>-8</sup>, All others = 1X10<sup>-3</sup>"),
+                        HTML("Note: p-threshold maximums are H2P2 = 1X10<sup>-5</sup>, NHGRI = 5X10<sup>-8</sup>, all others = 1X10<sup>-3</sup>"),
                         style="margin-top:-5px; width:90%"
                       ),
                       style="display:inline-block; vertical-align:top; margin-top:-5px; width:36%"
@@ -501,7 +501,7 @@ shinyUI(
                         style="display:inline-block; vertical-align:top; margin-top:0px; width:48%"
                       ),
                       div(
-                        HTML("Note: p-threshold maximums are H2P2 = 1X10<sup>-5</sup>, NHGRI = 5X10<sup>-8</sup>, All others = 1X10<sup>-3</sup>"),
+                        HTML("Note: p-threshold maximums are H2P2 = 1X10<sup>-5</sup>, NHGRI = 5X10<sup>-8</sup>, all others = 1X10<sup>-3</sup>"),
                         style="margin-top:-5px; width:90%"
                       ),
                       style="display:inline-block; vertical-align:top; margin-top:-5px; width:36%"
