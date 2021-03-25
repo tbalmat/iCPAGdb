@@ -13,7 +13,7 @@ This repo contains two parts
 2) R shiny code for Web browser
 
 ## Update for V1.1
-We added ```--lddb-r2``` parameter to allow users choosing different LD proxy database. However, since the pre-built in GWAS dataset were clumped by PLINK using `--clump-r2 0.4` for each study, we recommend to use default `--lddb-r2 0.4`. 
+We added ```--lddb-r2``` parameter to allow users choosing different LD proxy database. However, since the pre-built in GWAS dataset were clumped by PLINK using `--clump-r2 0.4` for each study, we recommend to use default parameter: `--lddb-r2 0.4`. 
 
 # Quick start
 
