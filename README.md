@@ -2,7 +2,7 @@
 
 Web browser: http://cpag.oit.duke.edu/ 
 
-This repo contains both back-end and front-end codes of iCPAGdb and the web browser.
+This repo contains both backend and frontend code of iCPAGdb and the web browser.
 
 iCPAGdb integrates the results of GWAS across different phenotypic scales, identifying and quantifying the significance of pleiotropic loci that impact molecular, cellular, and organismal traits. The goal is to provide a resource that allows experts on a particular human trait to easily develop hypotheses for molecular and cellular phenotypes that underlie the physiology of that trait. Molecules and cellular pathways implicated in this way could serve as novel biomarkers or targets for therapeutic approaches. Current verion of iCPAGdb contains GWAS summary statistic from >4400 diseases/traits, and allows users to explore pre-computed correlations across all existing diseases and/or upload their own GWAS to identify and explore shared SNPs between their own GWAS and >4400 diseases/traits.
 
