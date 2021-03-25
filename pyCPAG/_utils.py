@@ -48,7 +48,7 @@ def check_py_version():
 
 flatten_list = lambda lst: [y for x in lst for y in x]
 
-def intra_trait(snpdat, ncpus = 1, ldpop="EUR", cross_traits = False):
+def intra_trait(snpdat, ncpus = 1, ldpop="EUR", r2cut = 0.4, cross_traits = False):
     """
     :param snpdat: a dict. Keys are trait name, and values are a list containing SNPs
     :param ncpus: int. number of threads/CPUs
@@ -91,7 +91,7 @@ def intra_trait(snpdat, ncpus = 1, ldpop="EUR", cross_traits = False):
     # , require='sharedmem' , backend="multiprocessing","threading"
     res = Parallel(n_jobs=ncpus, backend="threading")(delayed(intra_trait_pair)(
         trait1snps = set(snpdat[allpairs[i][0]]), trait2snps = set(snpdat[allpairs[i][1]]),
-        trait1name = allpairs[i][0], trait2name = allpairs[i][1], ldpop = ldpop)
+        trait1name = allpairs[i][0], trait2name = allpairs[i][1], ldpop = ldpop, r2cut= r2cut)
         for i in trange(len(allpairs), desc='Total processing: '))
 
     res_f = pd.DataFrame(res, columns=["Trait1", "Trait2", "N1_pcut", "N2_pcut", "Nshare_direct",
@@ -198,7 +198,7 @@ def merge_SNPpairList(l=None):
     return(out_pair, n0_len)
 
 
-def intra_trait_pair(trait1snps = None, trait2snps = None, trait1name = None, trait2name = None, ldpop = "EUR"):
+def intra_trait_pair(trait1snps = None, trait2snps = None, trait1name = None, trait2name = None, ldpop = "EUR", r2cut=0.4):
     """
     :param trait1snps: set. a set of SNPs' rsID for trait2
     :param trait2snps: set. a set of SNPs' rsID for trait2
@@ -207,7 +207,7 @@ def intra_trait_pair(trait1snps = None, trait2snps = None, trait1name = None, tr
     :return: pandas DataFrame.
     """
 
-    lddb_con = query_lddb(ldpop = ldpop)
+    lddb_con = query_lddb(ldpop = ldpop, r2cut= r2cut)
     lddb_con.opendb()
 
     # trait_i, trait_j = ["Eczema",	"Self-reported psoriasis"]
@@ -269,12 +269,10 @@ def intra_trait_pair(trait1snps = None, trait2snps = None, trait1name = None, tr
 def ld_clump(idat, args):
     # pop = "EUR"; #clump_r2 = 0.4; clump_kb = 10000
     # clump_p1 = 1; clump_p2 = 1; ## here no restriction of p values were applied as a SNP is significant in one dataset, but its proxy may be significant in another
-    #plink_bin = "./plink_bins/plink"
-    plink_bin = "plink_bins\plink.exe"
+    plink_bin = "./plink_bins/plink"
     b_file = "./db/lddat/" + args.ldpop + "_1kg_20130502_maf01"
     tag_nsnp = 10000 ## maximum number of SNPs' proxy
-    #tmpfile = "tempfile4clump"
-    tmpfile = "plink_bins/tmp/tempfile4clump"
+    tmpfile = "tempfile4clump"
 
     if os.path.isfile(tmpfile):
         os.remove(tmpfile)
@@ -385,9 +383,9 @@ class query_lddb(object):
     """
     create a class for h2p2 prune data
     """
-    def __init__(self, ldpop= "EUR", r2cut = None):
+    def __init__(self, ldpop= "EUR", r2cut = 0.4):
         self.dbpath = "./db/"
-        self.lddb = "cpag_gwasumstat_v1.1_" + ldpop +".ld0.4.db"
+        self.lddb = "cpag_gwasumstat_v1.1." + ldpop +"_ld" + str(r2cut) + ".db"
         # self.lddb = "cpag1_gwasumstat20130904." + ldpop +"_ld0.6.db"
         self.check_dbfile()
         # self._conn = self.opendb()

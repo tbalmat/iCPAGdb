@@ -97,7 +97,7 @@ def gwasdb_cmp(args):
         snpdat = dict(ChainMap(*subtypelist))
         snpdat = {key: value for key, value in snpdat.items() if len(value) > 0}
 
-        outdf = intra_trait(snpdat, ncpus=args.cpu,ldpop=args.ldpop,  cross_traits=False)
+        outdf = intra_trait(snpdat, ncpus=args.cpu,ldpop=args.ldpop, r2cut=args.ldr2,  cross_traits=False)
         oname = "-".join([x for x in subtypeall]).replace(" ", "").replace(",", "")
     else:
         if len(args.subtype) > 2:
@@ -163,7 +163,7 @@ def gwasdb_cmp(args):
                 subtypelist.append(tmpdat)
 
         snpdat = subtypelist
-        outdf = intra_trait(snpdat, ncpus=args.cpu,ldpop=args.ldpop,  cross_traits=True)
+        outdf = intra_trait(snpdat, ncpus=args.cpu,ldpop=args.ldpop, r2cut=args.r2cut,  cross_traits=True)
 
         oname_merge = []
         for x in subtypeall:
@@ -357,7 +357,7 @@ def user_gwas_cmp(args):
     # print("after ld clumpping", len(snpdat_db))
 
     snpdat = [user_dat,snpdat_db]
-    outdf = intra_trait(snpdat, ncpus=args.cpu,ldpop=args.ldpop, cross_traits=True)
+    outdf = intra_trait(snpdat, ncpus=args.cpu,ldpop=args.ldpop, r2cut=args.ldr2, cross_traits=True)
 
     outdf['Trait1'] = str(args.usr_phename)
 
@@ -484,6 +484,8 @@ def main(prog=None):
                             help="filtering out SNPs for H2P2")
     inter_gwas.add_argument('--lddb-pop', type=str, dest="ldpop", default='EUR',
                             help="LD reference population, default: 'EUR', available for ['EUR', 'AFR', 'EAS'] ")
+    inter_gwas.add_argument('--lddb-r2', type=float, dest="ldr2", default=0.4,
+                           help="LD database, default: '0.4', available for [0.2, 0.4, 0.8] ")
     inter_gwas.add_argument('--threads', type=int, dest="cpu", action="store", default=1,
                             help="Set multiple CPUs/threads. Default: 1")
     inter_gwas.add_argument('-O', '--outfile', type=str, dest="outfile", action="store", default=None,
@@ -516,6 +518,8 @@ def main(prog=None):
                            help="perform LD clumping, choose [1/0]. Default: 1")
     user_gwas.add_argument('--lddb-pop', type=str, dest="ldpop", default="EUR",
                            help="Population used for LD clumping, default: 'EUR', available for ['EUR', 'AFR', 'EAS'] ")
+    user_gwas.add_argument('--lddb-r2', type=float, dest="ldr2", default=0.4,
+                           help="LD database, default: '0.4', available for [0.2, 0.4, 0.8] ")
     user_gwas.add_argument('--ld-clump-p1', type=float, dest="ldclump_p1", default=1e-5,
                            help="parameters for LD clumping p1, default: 1e-5")
     user_gwas.add_argument('--ld-clump-p2', type=float, dest="ldclump_p2", default=1,
