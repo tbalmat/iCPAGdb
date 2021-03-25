@@ -23,7 +23,7 @@ This repo contains two parts
 wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20201019.zip
 ```
 
-2) download ziped database file (~15Gb), and decompressed it to "db" folder from Dropbox [LINK](https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0). The following is an example of downloading command on Linux/Mac using ```wget```.
+2) download ziped database file (~33 Gb), and decompressed it to "db" folder from Dropbox [LINK](https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0). The following is an example of downloading command on Linux/Mac using ```wget```.
 
 ```sh 
 wget https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa\?dl=1  --content-disposition
