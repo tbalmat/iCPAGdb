@@ -13,7 +13,7 @@ This repo contains two parts
 2) R shiny code for Web browser
 
 ## Update for V1.1
-We added "--lddb-r2" parameter to allow users choosing different LD proxy database. However, since the pre-built in GWAS dataset in current version, the GWAS summary statistics were clumped using R2 of 0.4 for each study. We recommend to use default R2 cutoff of 0.4. 
+We added "--lddb-r2" parameter to allow users choosing different LD proxy database. However, since the pre-built in GWAS dataset in current version, the GWAS summary statistics were clumped using $R^2$ of 0.4 for each study. We recommend to use default $R^2$ cutoff of 0.4. 
 
 # Quick start
 
