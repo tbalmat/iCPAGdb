@@ -69,7 +69,7 @@ shinyServer(
     inDirUserCompute <- paste(inDir, "/", pyUserComputeInDir, sep="")
     outDirUserCompute <- paste(outDir, "/", pyUserComputeOutDir, sep="")
     logDir <- paste(appDir, "/log", sep="")
-    logFile0 <- "iCPAGlog.txt"
+    logFile0 <- "iCPAGdbLog.dat"
     logFile <- paste(logDir, "/", logFile0, sep="")
     exploreTabFirst <- T
     currentUserComputeCPAGdata <- data.frame()
@@ -116,13 +116,13 @@ shinyServer(
     # Delimit columns by tabs since some entries have commas and quotes (OS commands, for instance) 
     tryCatch(
       if(length(which(dir(logDir, logFile0)==logFile0))==0)
-        write("sessionID \t date \t time \t  section \t operation \t parameter1 \t parameter2 t parameter3 \t parameter4 \t parameter5 \t parameter6 \t status \t note", logFile),
-      warning=function(err) msgWindow("WARNING", "Acces or create log", err),
-      error=function(err) msgWindow("ERROR", "Acces or create log", err)
+        write("sessionID\tdateTime\tsection\toperation\tparameter1\tparameter2\tparameter3\tparameter4\tparameter5\tparameter6\tstatus\tnote", logFile),
+      warning=function(err) msgWindow("WARNING", "Access or create log", err),
+      error=function(err) msgWindow("ERROR", "Access or create log", err)
     )
 
     logEntryTrim <- function(a)
-      paste(a[which(nchar(gsub(" ", "", a))>0)], collapse="||", sep="")
+      gsub("\"", "\\\"", paste(a[which(nchar(gsub(" ", "", a))>0)], collapse="||", sep=""))
 
     # Create a session ID
     sessionID <- paste(format(Sys.time(), "%Y%m%d%H%M%S"), "-", paste(sample(0:9, 10, replace=T), collapse=""), sep="")
@@ -131,12 +131,12 @@ shinyServer(
                          parameter5="", parameter6="", status="", note="") {
 
       tryCatch(
-        write(paste(sessionID, "\t", format(Sys.time(), "%Y-%m-%d,%H:%M:%S"), "\t",
-                    section, "\t", operation, "\t",
-                    logEntryTrim(parameter1), "\t", logEntryTrim(parameter2), "\t",
-                    logEntryTrim(parameter3), "\t", logEntryTrim(parameter4), "\t",
-                    logEntryTrim(parameter5), "\t", logEntryTrim(parameter6), "\t",
-                    status, "\t", logEntryTrim(note), sep=""),
+        write(paste(sessionID, "\t", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), "\t",
+                    section, "\t", operation, "\t\"",
+                    logEntryTrim(parameter1), "\"\t\"", logEntryTrim(parameter2), "\"\t\"",
+                    logEntryTrim(parameter3), "\"\t\"", logEntryTrim(parameter4), "\"\t\"",
+                    logEntryTrim(parameter5), "\"\t\"", logEntryTrim(parameter6), "\"\t",
+                    status, "\t\"", logEntryTrim(note), "\"", sep=""),
               logFile, append=T),
         warning=function(err) msgWindow("WARNING", "Write to log", err),
         error=function(err) msgWindow("ERROR", "Write to log", err)
@@ -945,7 +945,7 @@ shinyServer(
                             heatmapNphenotype=input$reviewSelectionHeatmapNphenotype)
 
               # Log GWAS selection
-              writeLog(section="Review", operation="SelectGWAS",
+              writeLog(section="Review", operation="selectGWAS",
                        parameter1=reviewCPAG[trow,"Description"],
                        parameter2=reviewCPAG[trow,"GWAS_1_source"],
                        parameter3=reviewCPAG[trow,"GWAS_2_source"],
@@ -961,7 +961,7 @@ shinyServer(
               showModal(modalDialog(HTML(paste("File <b>", reviewCPAG[trow,"file"], "</b> not found", sep="")),
                         title="iCPAGdb Review", size="m", easyClose=T, footer=modalButton("OK")))
               # Log error
-              writeLog(section="Review", operation="SelectGWAS", parameter1=reviewCPAG[trow,"file"],
+              writeLog(section="Review", operation="selectGWAS", parameter1=reviewCPAG[trow,"file"],
                        status="error", note="File does not exist")
 
             }
