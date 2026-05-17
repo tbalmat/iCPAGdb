@@ -26,12 +26,7 @@ We added ```--lddb-r2``` parameter to allow users choosing different LD proxy da
 wget http://s3.amazonaws.com/plink1-assets/plink_linux_x86_64_20201019.zip
 ```
 
-2) download ziped database file (~33 Gb), and decompressed it to "db" folder from Dropbox [LINK](https://www.dropbox.com/sh/na23jflxcgk0nib/AAAoOj3gB8k8j_dNH1UBFzeZa?dl=0). Here is an example of downloading the required database using using ```wget``` on Linux/Mac OS.
-
-```sh 
-wget https://www.dropbox.com/sh/na23jflxcgk0nib/AAAKi--r8cS44U8VboFWBTP2a/cpag_gwasumstat_v1.1.EUR_ld0.4.db  --content-disposition
-
-```
+2) download ziped database file (~33 Gb), and decompressed it to "db" folder from Box [LINK](https://duke.app.box.com/s/32m7nuravxzre96545c1rp5rcs1z0ipd). Here is an example of downloading the required database using using ```wget``` on Linux/Mac OS.
 
 The final folder structure contains all required codes and data file: <br/>
 pyCPAGdb <br/>
